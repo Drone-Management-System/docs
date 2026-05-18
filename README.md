@@ -117,10 +117,21 @@ bun run build
 
 ## Deployment
 
+The site is configured for GitHub Pages at:
+
+```text
+https://drone-management-system.github.io/docs/
+```
+
+Deployment is handled by `.github/workflows/deploy-pages.yml`.
+
 1. Deploy the backend module APIs, such as CAA Registry.
-2. Set the docs environment variables for the deployed API URLs.
-3. Run `bun run typecheck` and `bun run build`.
-4. Publish the contents of `build/` using the chosen static hosting target.
+2. In GitHub, set the repository Pages source to GitHub Actions.
+3. Add `DOCS_CAA_REGISTRY_API_BASE_URL` as a repository Actions variable.
+4. Push to `main`.
+
+The workflow installs dependencies, runs type checking, builds the Docusaurus
+site, and publishes the `build/` directory to GitHub Pages.
 
 When an API moves to a new host, update the relevant `DOCS_*_API_BASE_URL`
 variable, rebuild the docs, and redeploy the static output.
