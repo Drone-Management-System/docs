@@ -3,7 +3,6 @@ import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
 
 import styles from './index.module.css';
@@ -20,8 +19,8 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/intro">
-            Docusaurus Tutorial - 5min ⏱️
+            to="/docs/api/caa-registry/overview">
+            Open API Reference
           </Link>
         </div>
       </div>
@@ -33,11 +32,39 @@ export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`Hello from ${siteConfig.title}`}
-      description="Description will go into a meta tag in <head />">
+      title={siteConfig.title}
+      description="Reference documentation for DMS backend modules">
       <HomepageHeader />
       <main>
-        <HomepageFeatures />
+        <section className={styles.moduleBand}>
+          <div className="container">
+            <div className={styles.moduleGrid}>
+              <article className={styles.moduleCard}>
+                <p className={styles.eyebrow}>Public reference</p>
+                <Heading as="h2">CAA Registry API</Heading>
+                <p>
+                  Consumer-facing endpoint docs for organizations, users,
+                  operators, UAS records, UA aircraft, lookup, search, and
+                  audit history.
+                </p>
+                <Link to="/docs/api/caa-registry/overview">
+                  Read the API reference
+                </Link>
+              </article>
+              <article className={styles.moduleCard}>
+                <p className={styles.eyebrow}>Internal reference</p>
+                <Heading as="h2">Module Architecture</Heading>
+                <p>
+                  Implementation notes for the Fastify service, runtime setup,
+                  database ownership, startup flow, and data model.
+                </p>
+                <Link to="/docs/modules/caa-registry/overview">
+                  Read architecture notes
+                </Link>
+              </article>
+            </div>
+          </div>
+        </section>
       </main>
     </Layout>
   );

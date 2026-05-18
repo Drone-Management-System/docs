@@ -1,0 +1,244 @@
+---
+sidebar_position: 4
+title: API Conventions
+---
+
+import ApiBaseUrl from '@site/src/components/ApiBaseUrl';
+
+# API Conventions
+
+This page documents conventions shared across CAA Registry endpoints.
+
+## Base URL
+
+The code does not enforce a route prefix. All routes are registered at the
+service root:
+
+<ApiBaseUrl />
+
+Deployment environments may place the service behind a gateway path. In that
+case, prepend the gateway path to the routes documented here.
+
+In shell examples, set the base URL once:
+
+```bash
+export CAA_REGISTRY_API_BASE_URL="https://caa-registry-api.example.com"
+```
+
+## Endpoint Page Format
+
+Endpoint sections follow the same shape across this reference:
+
+| Section | Purpose |
+| --- | --- |
+| Method and path block | Shows the HTTP method, route template, permission, auth requirement, and success status. |
+| Request example | Shows a direct `curl` call using `$CAA_REGISTRY_API_BASE_URL`. |
+| Path parameters | Documents route parameters such as `:orgId` or `:uasId`. |
+| Query parameters | Documents filters, pagination, defaults, and limits. |
+| Request body | Shows JSON fields for `POST` and `PUT`. |
+| Response | Shows the normal success response shape. |
+| Error responses | Lists machine-readable `detail` values callers should handle. |
+
+## Content Type
+
+Write endpoints expect JSON request bodies. Clients should send:
+
+```http
+Content-Type: application/json
+Accept: application/json
+```
+
+## Authentication
+
+Send a bearer token on every request unless you are calling public health:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+See [Auth and Permissions](./auth-and-permissions) for group mapping and
+permission details.
+
+## Pagination
+
+Most list endpoints use offset pagination:
+
+| Query parameter | Default | Minimum | Maximum |
+| --- | --- | --- | --- |
+| `limit` | Usually `50` | `1` | Usually `200` |
+| `offset` | `0` | `0` | `100000` |
+
+The response shape is:
+
+```json
+{
+  "items": [],
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+The service queries `limit + 1` rows and returns only the first `limit` rows.
+`has_more` is `true` when one extra row was found.
+
+Exceptions:
+
+| Endpoint | Limit default | Limit maximum | Shape |
+| --- | --- | --- | --- |
+| `GET /search` | `10` | `50` | Separate arrays per entity type and per-entity `*_has_more` flags. |
+| Entity history routes | `100` | `500` | Raw audit row array, no offset. |
+| `GET /audit` | `100` | `500` | Standard paged result. |
+| `GET /uas/:uasId/certificates` | No pagination | No limit | `{ "items": [], "uas_id": "..." }`. |
+
+## Sorting
+
+List endpoints sort newest records first. Most business entities order by
+`created_at desc` and then ID desc. Reference data sorts by descending smallint
+ID. Audit history sorts by `created_at desc`.
+
+## IDs
+
+| ID type | Used by | Notes |
+| --- | --- | --- |
+| UUID strings | Organizations, users, operators, UAS, UA, audit IDs | Route handlers require non-empty strings and rely on database typing for UUID validity. |
+| Smallint numbers | Operator types and user types | Must be an integer between `-32768` and `32767`. |
+| Text natural keys | UAS `registration_id`, UAS `serial_number`, approval references | Unique constraints are enforced by the database. |
+
+## Timestamps
+
+Business tables include:
+
+| Field | Behavior |
+| --- | --- |
+| `created_at` | Defaults to database `now()` on insert. |
+| `updated_at` | Defaults to database `now()` on insert and is explicitly set to `now()` on `PUT`. |
+
+## String Normalization
+
+Request body strings are trimmed. Empty or non-string values become `null` when
+the field is optional, or return a `400` when the field is required.
+
+Email values for registry users are lowercased before insert or update.
+
+Country codes on organizations are uppercased when supplied.
+
+## Boolean Parsing
+
+Boolean query parameters accept:
+
+| Input | Parsed value |
+| --- | --- |
+| `true` | `true` |
+| `false` | `false` |
+| omitted or empty | `null` for filters |
+
+Invalid boolean query strings return:
+
+```json
+{
+  "detail": "boolean_query_invalid"
+}
+```
+
+Boolean body fields accept booleans or the strings `"true"` and `"false"`.
+Invalid body booleans return:
+
+```json
+{
+  "detail": "boolean_invalid"
+}
+```
+
+## Date Parsing
+
+Operator approval date fields must be date-only strings:
+
+```text
+YYYY-MM-DD
+```
+
+`approval_valid_to` cannot be before `approval_valid_from`. If it is, the API
+returns:
+
+```json
+{
+  "detail": "approval_valid_to_before_from"
+}
+```
+
+## Numeric Fields
+
+UA aircraft numeric measurement fields are normalized to strings because the
+database columns are PostgreSQL `numeric` types. Valid inputs can be numbers or
+numeric strings. Negative values are rejected for fields that require
+non-negative values.
+
+| Field | Rule |
+| --- | --- |
+| `mass_kg` | Optional, numeric, minimum `0`. |
+| `max_airspeed_mps` | Optional, numeric, minimum `0`. |
+| `max_altitude_m` | Optional, numeric, minimum `0`. |
+| `endurance_minutes` | Optional integer, minimum `1`. |
+
+## Write Semantics
+
+| Method | Behavior |
+| --- | --- |
+| `POST` | Creates a new row and returns HTTP `201` with the created row. |
+| `PUT` | Replaces all writable fields for an existing row and returns the updated row. |
+| `DELETE` | Deletes the row and returns the deleted row. |
+
+`PUT` is not a partial patch. Omitted optional fields are stored as `null` or
+their documented default.
+
+## Audit Behavior
+
+All create, update, and delete operations write to `public.audit_log`.
+
+| Action | Audit fields |
+| --- | --- |
+| Create | `entity_type`, `entity_id`, `action: "create"`, `actor`, `after_json`. |
+| Update | `entity_type`, `entity_id`, `action: "update"`, `actor`, `before_json`, `after_json`. |
+| Delete | `entity_type`, `entity_id`, `action: "delete"`, `actor`, `before_json`, `after_json`. |
+
+`correlation_id` exists in the audit table but route handlers do not currently
+populate it.
+
+## Error Envelope
+
+Application errors use a stable JSON envelope:
+
+```json
+{
+  "detail": "machine_readable_detail"
+}
+```
+
+| Status | Typical cause |
+| --- | --- |
+| `400` | Missing required field, invalid query, invalid enum, invalid date, invalid numeric value. |
+| `401` | Missing or invalid authentication. |
+| `403` | Valid token but missing permission. |
+| `404` | Referenced or requested record not found. |
+| `409` | Business conflict, such as linked child records blocking deletion. |
+| `500` | Unhandled server error. |
+
+Database uniqueness and foreign-key violations are not wrapped by custom route
+logic in every case. Depending on Fastify and database error behavior, those can
+surface as framework/database errors. Clients should treat unique natural keys
+as immutable constraints.
+
+## Common Validation Details
+
+| Detail | Meaning |
+| --- | --- |
+| `limit_invalid` | `limit` was outside the allowed range or not an integer. |
+| `offset_invalid` | `offset` was outside the allowed range or not an integer. |
+| `q_required` | Search query `q` was missing or empty. |
+| `q_too_short` | Search query `q` was shorter than two characters. |
+| `organization_kind_invalid` | Organization kind was not one of the supported enum values. |
+| `operator_type_id_invalid` | Operator type ID was not a valid smallint. |
+| `user_type_id_invalid` | User type ID was not a valid smallint. |
+| `boolean_query_invalid` | Boolean query value was not `true` or `false`. |
+| `boolean_invalid` | Boolean body value was not a boolean or accepted string. |

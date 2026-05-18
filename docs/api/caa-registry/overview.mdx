@@ -1,0 +1,87 @@
+---
+sidebar_position: 1
+title: API Overview
+---
+
+import ApiBaseUrl from '@site/src/components/ApiBaseUrl';
+import Endpoint from '@site/src/components/Endpoint';
+
+# CAA Registry API
+
+This is the public-facing API reference for consumers of the CAA Registry
+service. It describes how to authenticate, what endpoints are available, how
+requests and responses are shaped, and what errors clients should expect.
+
+For implementation details such as service startup, plugins, database schema,
+and internal ownership, see the [CAA Registry module architecture](../../modules/caa-registry/overview).
+
+## Configured Base URL
+
+This docs build is configured with:
+
+<ApiBaseUrl />
+
+The value comes from `.env`:
+
+```env
+DOCS_CAA_REGISTRY_API_BASE_URL=https://caa-registry-api.example.com
+```
+
+When the Proxmox deployment URL changes, update that variable, rebuild, and
+redeploy the docs. Endpoint examples use a shell variable so they stay portable:
+
+```bash
+export CAA_REGISTRY_API_BASE_URL="https://caa-registry-api.example.com"
+```
+
+Then call endpoints with:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/health"
+```
+
+## Endpoint Families
+
+| Family | Routes | Purpose |
+| --- | --- | --- |
+| Health | `GET /health` | Check service readiness. |
+| [Reference data](./endpoints/reference-data) | `/operator-types`, `/user-types` | Manage operator and user classification values. |
+| [Organizations](./endpoints/organizations) | `/organizations` | Manage registry organizations. |
+| [Users](./endpoints/users) | `/users` | Manage registry users. |
+| [Operators](./endpoints/operators) | `/operators` | Manage approved operators. |
+| [UAS records](./endpoints/uas) | `/uas` | Manage UAS registrations and certificates. |
+| [UA aircraft](./endpoints/ua-aircraft) | `/ua`, `/uas/:uasId/ua` | Manage aircraft records under UAS registrations. |
+| [Lookup](./endpoints/lookup-and-search) | `/lookup/uas/:registrationId` | Fetch an operational UAS registration view. |
+| [Search](./endpoints/lookup-and-search) | `/search` | Search across registry entities. |
+| [Audit](./endpoints/audit) | `/audit`, `/:entity/:id/history` | Read write history. |
+
+## `GET /health`
+
+<Endpoint
+  method="GET"
+  path="/health"
+  title="Check service health"
+  auth="Public when health auth bypass is enabled; otherwise bearer token"
+  success="200 OK"
+  summary="Checks database connectivity and reports cache availability."
+/>
+
+```bash
+curl "$CAA_REGISTRY_API_BASE_URL/health"
+```
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "cache": "disabled_or_unavailable"
+}
+```
+
+## Recommended Reading Order
+
+1. [Auth and Permissions](./auth-and-permissions)
+2. [Sign and Call APIs](../../development/sign-and-call-api)
+3. [API Conventions](./api-conventions)
+4. [Endpoint pages](./endpoints/reference-data) for the resources you need

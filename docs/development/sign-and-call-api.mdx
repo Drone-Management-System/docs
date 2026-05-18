@@ -1,0 +1,204 @@
+---
+sidebar_position: 1
+title: Sign and Call APIs
+---
+
+# Sign and Call APIs
+
+Use this development template to verify that a module API accepts ZITADEL
+service-user tokens. It signs a JWT assertion with a JSON key, exchanges the
+assertion for an access token, and calls one endpoint.
+
+## `.env`
+
+```env
+ZITADEL_DOMAIN=https://zitadel.secure-utm.org
+PROJECT_ID=371736737606533123
+KEY_FILE=./service-user-key.json
+API_BASE_URL=http://10.10.201.172:8000
+API_TEST_PATH=/organizations?limit=10&offset=0
+```
+
+| Variable | Purpose |
+| --- | --- |
+| `ZITADEL_DOMAIN` | Base URL of the ZITADEL instance. |
+| `PROJECT_ID` | ZITADEL project ID used in the audience scope. |
+| `KEY_FILE` | Path to the service-user JSON key. |
+| `API_BASE_URL` | Base URL of the module API being tested. |
+| `API_TEST_PATH` | Endpoint path to call after the token is created. |
+
+The key file contains private key material. Keep it local and out of source
+control.
+
+## Script
+
+Save as `sign-and-call-api.mjs`.
+
+```js
+import { createSign } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+function loadEnv(path = ".env") {
+  const content = readFileSync(path, "utf8");
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed
+      .slice(separatorIndex + 1)
+      .trim()
+      .replace(/^["']|["']$/g, "");
+
+    if (key && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadEnv();
+
+const requiredEnv = [
+  "ZITADEL_DOMAIN",
+  "PROJECT_ID",
+  "KEY_FILE",
+  "API_BASE_URL",
+  "API_TEST_PATH",
+];
+
+for (const name of requiredEnv) {
+  if (!process.env[name]) {
+    console.error(`Missing required environment variable: ${name}`);
+    process.exit(1);
+  }
+}
+
+const ZITADEL_DOMAIN = process.env.ZITADEL_DOMAIN;
+const PROJECT_ID = process.env.PROJECT_ID;
+const KEY_FILE = process.env.KEY_FILE;
+const API_BASE_URL = process.env.API_BASE_URL.replace(/\/$/, "");
+const API_TEST_PATH = process.env.API_TEST_PATH.startsWith("/")
+  ? process.env.API_TEST_PATH
+  : `/${process.env.API_TEST_PATH}`;
+
+function base64url(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
+function createSignedJWT(keyFile) {
+  const now = Math.floor(Date.now() / 1000);
+
+  const header = base64url(
+    JSON.stringify({
+      alg: "RS256",
+      kid: keyFile.keyId,
+    })
+  );
+
+  const payload = base64url(
+    JSON.stringify({
+      iss: keyFile.userId,
+      sub: keyFile.userId,
+      aud: ZITADEL_DOMAIN,
+      iat: now,
+      exp: now + 3600,
+    })
+  );
+
+  const signingInput = `${header}.${payload}`;
+
+  const sign = createSign("RSA-SHA256");
+  sign.update(signingInput);
+
+  const signature = sign
+    .sign(keyFile.key)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+
+  return `${signingInput}.${signature}`;
+}
+
+async function getToken() {
+  const keyFile = JSON.parse(readFileSync(KEY_FILE, "utf8"));
+  const assertion = createSignedJWT(keyFile);
+
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion,
+    scope: [
+      "openid",
+      "profile",
+      "email",
+      `urn:zitadel:iam:org:project:id:${PROJECT_ID}:aud`,
+      "urn:zitadel:iam:org:projects:roles",
+    ].join(" "),
+  });
+
+  const response = await fetch(`${ZITADEL_DOMAIN}/oauth/v2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    console.error("Token request failed");
+    console.error(JSON.stringify(data, null, 2));
+    process.exit(1);
+  }
+
+  return data.access_token;
+}
+
+async function callApi(token) {
+  const response = await fetch(`${API_BASE_URL}${API_TEST_PATH}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error(`API request failed: ${response.status}`);
+    console.error(JSON.stringify(data, null, 2));
+    process.exit(1);
+  }
+
+  return data;
+}
+
+const token = await getToken();
+console.log("Access token created.");
+
+const result = await callApi(token);
+console.log(JSON.stringify(result, null, 2));
+```
+
+## Run
+
+```bash
+node sign-and-call-api.mjs
+```
+
+Use a protected endpoint for `API_TEST_PATH`. Public endpoints such as health
+checks do not verify that ZITADEL authentication is working.

@@ -1,0 +1,112 @@
+---
+sidebar_position: 1
+title: Overview
+---
+
+# CAA Registry Module
+
+The CAA Registry module is the backend service that owns the
+`caa_registry_api` subsystem. This section is for maintainers who need to
+understand how the service is built, configured, deployed, and evolved.
+
+For consumer-facing endpoint usage, request examples, response shapes, and
+errors, use the [CAA Registry API reference](../../api/caa-registry/overview).
+
+The implementation lives in the sibling project at `../caa-registry/node-api`.
+It is a Fastify 5 service written in TypeScript, running on Bun, using Drizzle
+ORM with PostgreSQL, optional Redis connectivity, and ZITADEL-compatible OIDC
+JWT authentication.
+
+## Service Scope
+
+The service owns the CAA registry slice of the backend data model:
+
+| Area | Tables |
+| --- | --- |
+| Reference data | `caa_registry_api.operator_type`, `caa_registry_api.user_type` |
+| Organizations | `caa_registry_api.organization` |
+| Registry users | `caa_registry_api.user` |
+| Operators | `caa_registry_api.operator` |
+| UAS registrations | `caa_registry_api.uas` |
+| UA aircraft | `caa_registry_api.ua` |
+| Audit trail | `public.audit_log` |
+
+The UAS certificate endpoint also reads Remote ID certificate data from
+`remote_id_uss_api.remote_id_certificate`. That table is external to this
+module and is treated as read-only by the CAA Registry API.
+
+## Route Registration
+
+The service registers route families from `src/routes/index.ts`. This is a
+maintainer map, not the public API reference.
+
+| Route module | Base routes | Implementation concern |
+| --- | --- | --- |
+| `healthRoutes` | `GET /health` | Database and optional cache health. |
+| `referenceDataRoutes` | `/operator-types`, `/user-types` | Reference table CRUD and audit writes. |
+| `organizationRoutes` | `/organizations` | Organization CRUD, search filters, and audit writes. |
+| `userRoutes` | `/users` | Registry user CRUD, reference validation, and audit writes. |
+| `operatorRoutes` | `/operators` | Operator CRUD, cross-reference validation, delete guards, and audit writes. |
+| `uasRoutes` | `/uas` | UAS CRUD, certificate reads, delete guards, and audit writes. |
+| `uaRoutes` | `/ua`, `/uas/:uasId/ua` | UA aircraft CRUD and audit writes. |
+| `lookupRoutes` | `/lookup/uas/:registrationId` | Joined operational UAS lookup. |
+| `searchRoutes` | `/search` | Multi-table registry search. |
+| `auditRoutes` | `/audit`, `/:entity/:id/history` | Audit listing and entity history reads. |
+
+## Runtime Architecture
+
+The application starts in `src/server.ts` and builds a Fastify instance in
+`src/app.ts`. During startup it registers:
+
+| Plugin or Layer | Source | Behavior |
+| --- | --- | --- |
+| Error handler | `src/lib/errors.ts` | Converts domain errors into `{ "detail": "..." }` responses. |
+| Database plugin | `src/plugins/db.ts` | Decorates Fastify with a Drizzle client backed by a PostgreSQL pool. |
+| Cache plugin | `src/plugins/cache.ts` | Optionally connects to Redis and decorates Fastify with `app.cache`. |
+| Auth plugin | `src/plugins/auth.ts` | Verifies bearer tokens and attaches `request.auth`. |
+| Route plugin | `src/routes/index.ts` | Registers all route families. |
+
+The route layer is intentionally direct. Each route validates raw inputs,
+checks permissions, verifies referenced records where needed, performs Drizzle
+queries, and writes audit events for mutable operations.
+
+## Entity Lifecycle
+
+The main registry lifecycle is:
+
+1. Create reference data such as operator types and user types.
+2. Create an organization with an `organization_kind`.
+3. Create registry users, optionally linked to that organization and a user
+   type.
+4. Create an operator linked to an organization, optionally with a primary user
+   and operator type.
+5. Create UAS records linked to the operator.
+6. Create UA aircraft records linked to a UAS.
+7. Use lookup, search, and audit endpoints to operate and inspect the registry.
+
+Write endpoints create audit events with the acting principal derived from the
+validated token. Delete endpoints return the deleted row and also write audit
+events.
+
+## Implementation Notes
+
+- The API uses UUID primary keys for business entities and smallint primary
+  keys for reference tables.
+- `POST` creates records and returns HTTP `201`.
+- `PUT` replaces the writeable fields for an existing record. Partial patch
+  semantics are not implemented.
+- `DELETE` returns the deleted record when deletion succeeds.
+- List routes use offset pagination with `limit`, `offset`, and `has_more`.
+- Route-level validation returns stable machine-readable `detail` strings.
+- Authentication is required for every route except `/health` when health
+  bypass is enabled.
+
+## Maintainer Documentation Map
+
+Read these pages first:
+
+- [Getting Started](./getting-started): local setup, scripts, and environment.
+- [Data Model](./data-model): tables, fields, relationships, and constraints.
+
+Then use the public [CAA Registry API reference](../../api/caa-registry/overview)
+when you need endpoint-level consumer behavior.

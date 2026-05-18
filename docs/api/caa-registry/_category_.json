@@ -1,0 +1,9 @@
+{
+  "label": "CAA Registry API",
+  "position": 1,
+  "link": {
+    "type": "doc",
+    "id": "api/caa-registry/overview"
+  },
+  "collapsed": false
+}

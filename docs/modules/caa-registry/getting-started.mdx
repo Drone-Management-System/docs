@@ -1,0 +1,144 @@
+---
+sidebar_position: 2
+title: Getting Started
+---
+
+# Getting Started
+
+This page describes how to run, configure, and verify the CAA Registry API
+service from the `../caa-registry/node-api` project.
+
+## Runtime Stack
+
+| Component | Version or Library | Purpose |
+| --- | --- | --- |
+| Runtime | Bun | Runs the TypeScript service in development and the built JavaScript in production. |
+| Server | Fastify 5 | HTTP routing, hooks, logging, and plugin lifecycle. |
+| Database | PostgreSQL | Registry source of truth. |
+| ORM | Drizzle ORM | Typed query builder and schema definitions. |
+| Auth | `jose` with remote JWKS | JWT verification against ZITADEL-compatible OIDC configuration. |
+| Cache | Redis, optional | Health signal and shared cache connectivity. |
+| Validation | Zod and local helpers | Environment validation and request normalization. |
+
+## Scripts
+
+Run these commands from `../caa-registry/node-api`.
+
+| Command | Purpose |
+| --- | --- |
+| `bun install` | Install dependencies. |
+| `bun run dev` | Start the API with Bun watch mode from `src/server.ts`. |
+| `bun run build` | Compile TypeScript using `tsconfig.json`. |
+| `bun run start` | Run the compiled service from `dist/src/server.js`. |
+| `bun run test` | Run the Node test files in `tests/*.test.ts`. |
+| `bun run typecheck` | Type-check without emitting files. |
+| `bun run lint` | Alias for type-checking. |
+| `bun run db:generate` | Generate Drizzle migrations. |
+| `bun run db:push` | Push schema changes through Drizzle Kit. |
+| `bun run db:migrate` | Apply migrations. |
+| `bun run db:studio` | Open Drizzle Studio. |
+
+## Environment Loading
+
+The service loads `.env.local` first. If `.env.local` does not exist, it loads
+`.env`. Environment validation is implemented in `src/config.ts`.
+
+| Variable | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `PORT` | No | `8000` | Positive integer port for Fastify. |
+| `HOST` | No | `0.0.0.0` | Host passed to `app.listen`. |
+| `SERVICE_ENV` | No | `production` | One of `development`, `staging`, `production`, or `local`. |
+| `DATABASE_URL` | Yes | None | PostgreSQL connection string used by `pg.Pool`. |
+| `REDIS_ENABLED` | No | `true` when omitted | String flag. Any omitted value or `"true"` enables Redis logic. |
+| `REDIS_URL` | No | None | Required only when Redis should connect. |
+| `REDIS_CONNECT_TIMEOUT_MS` | No | `1000` | Positive integer socket timeout. |
+| `ZITADEL_ISSUER_URL` | Yes | None | Expected JWT issuer. Must be a valid URL. |
+| `ZITADEL_JWKS_URL` | Yes | None | Remote JWKS URL used by `jose`. Must be a valid URL. |
+| `ZITADEL_AUDIENCE` | Yes | None | Expected JWT audience. |
+| `ZITADEL_GROUPS_CLAIM` | No | `groups` | Claim used to derive groups and permissions. |
+| `ZITADEL_USERNAME_CLAIM` | No | `preferred_username` | Claim used as actor fallback. |
+| `ZITADEL_EMAIL_CLAIM` | No | `email` | Preferred actor claim for audit events. |
+| `ZITADEL_BYPASS_AUTH_FOR_HEALTH` | No | `true` when omitted | Allows unauthenticated `GET /health` only when truthy or omitted. |
+
+:::caution
+`REDIS_ENABLED` and `ZITADEL_BYPASS_AUTH_FOR_HEALTH` default to enabled when
+the variables are omitted. Set them to `"false"` explicitly when you need Redis
+disabled or health authentication enforced.
+:::
+
+## Minimal Local Environment
+
+```env
+PORT=8000
+HOST=0.0.0.0
+SERVICE_ENV=local
+
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/caa_registry
+
+REDIS_ENABLED=false
+
+ZITADEL_ISSUER_URL=https://auth.example.com/application/o/uav-monitoring-api/
+ZITADEL_JWKS_URL=https://auth.example.com/application/o/uav-monitoring-api/jwks/
+ZITADEL_AUDIENCE=uav-monitoring-api
+ZITADEL_GROUPS_CLAIM=groups
+ZITADEL_USERNAME_CLAIM=preferred_username
+ZITADEL_EMAIL_CLAIM=email
+ZITADEL_BYPASS_AUTH_FOR_HEALTH=true
+```
+
+## Startup Flow
+
+1. `src/server.ts` loads configuration and calls `buildApp()`.
+2. `buildApp()` creates a Fastify instance with logging enabled.
+3. The global error handler is registered before plugins and routes.
+4. The DB plugin creates a Drizzle client backed by a PostgreSQL pool with
+   `max: 10`.
+5. The cache plugin connects to Redis only when both `REDIS_ENABLED` and
+   `REDIS_URL` allow it.
+6. The auth plugin adds an `onRequest` hook for bearer token validation.
+7. Route modules are registered.
+8. Fastify listens on `HOST` and `PORT`.
+
+## Health Check
+
+`GET /health` verifies database connectivity by executing `select 1`. The
+response includes a cache state derived from the Redis client. Use whichever
+base URL is assigned to the deployment you are verifying.
+
+```bash
+curl "$CAA_REGISTRY_API_BASE_URL/health"
+```
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "cache": "disabled_or_unavailable"
+}
+```
+
+When Redis is connected, `cache` is `"connected"`.
+
+## Database Setup
+
+The registry schema is created by `drizzle/0002_caa_registry.sql`. That
+migration creates `caa_registry_api`, creates the registry tables, indexes, and
+constraints, and drops the older public `control_overrides`, `operators`, and
+`uavs` tables.
+
+The migration does not seed `operator_type` or `user_type`. Create those
+reference rows through the API or seed them separately before creating users or
+operators that reference them.
+
+## Verification Checklist
+
+After the service is configured:
+
+1. Run `bun run typecheck`.
+2. Run `bun run test`.
+3. Start the server with `bun run dev`.
+4. Set `CAA_REGISTRY_API_BASE_URL` to the reachable service URL.
+5. Call `GET /health`.
+6. Call one authenticated read route with a token that has the needed
+   permission, for example `GET /organizations`.
+7. Confirm write routes create rows in `public.audit_log`.

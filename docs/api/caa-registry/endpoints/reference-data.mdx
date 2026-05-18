@@ -1,0 +1,384 @@
+---
+sidebar_position: 1
+title: Reference Data
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Reference Data
+
+Reference data endpoints manage small lookup tables used by operators and
+registry users. The API exposes identical CRUD behavior for operator types and
+user types.
+
+## Permissions
+
+| Operation | Permission |
+| --- | --- |
+| List or fetch reference rows | `reference.read` |
+| Create or replace reference rows | `reference.write` |
+| Delete reference rows | `reference.delete` |
+
+## Shared Reference Shape
+
+Request bodies use this input shape:
+
+```json
+{
+  "id": 1,
+  "code": "COMMERCIAL",
+  "description": "Commercial operator"
+}
+```
+
+| Field | Required | Validation | Notes |
+| --- | --- | --- | --- |
+| `id` | Required on `POST`; route path controls it on `PUT` | Smallint integer from `-32768` to `32767` | Stored as `operator_type_id` or `user_type_id`. |
+| `code` | Yes | Non-empty string | Unique per table. |
+| `description` | No | Optional string | Empty values become `null`. |
+
+Reference list responses use standard pagination:
+
+```json
+{
+  "items": [
+    {
+      "operator_type_id": 1,
+      "code": "COMMERCIAL",
+      "description": "Commercial operator"
+    }
+  ],
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+## Operator Types
+
+Operator types map to `caa_registry_api.operator_type`.
+
+### Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/operator-types` | List operator types. |
+| `GET` | `/operator-types/:operatorTypeId` | Fetch one operator type. |
+| `POST` | `/operator-types` | Create an operator type. |
+| `PUT` | `/operator-types/:operatorTypeId` | Replace an operator type. |
+| `DELETE` | `/operator-types/:operatorTypeId` | Delete an operator type. |
+
+### `GET /operator-types`
+
+<Endpoint
+  method="GET"
+  path="/operator-types"
+  title="List operator types"
+  permission="reference.read"
+  success="200 OK"
+  summary="Returns paginated operator type reference rows."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operator-types?limit=50&offset=0"
+```
+
+#### Query Parameters
+
+| Parameter | Default | Maximum | Notes |
+| --- | --- | --- | --- |
+| `limit` | `50` | `200` | Number of rows to return. |
+| `offset` | `0` | `100000` | Number of rows to skip. |
+
+#### Response
+
+Rows are ordered by `operator_type_id desc` and returned in the shared paged
+result shape.
+
+### `GET /operator-types/:operatorTypeId`
+
+<Endpoint
+  method="GET"
+  path="/operator-types/:operatorTypeId"
+  title="Fetch operator type"
+  permission="reference.read"
+  success="200 OK"
+  summary="Returns one operator type by smallint ID."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operator-types/1"
+```
+
+#### Path Parameters
+
+| Parameter | Required | Notes |
+| --- | --- | --- |
+| `operatorTypeId` | Yes | Smallint operator type ID. |
+
+#### Response
+
+```json
+{
+  "operator_type_id": 1,
+  "code": "COMMERCIAL",
+  "description": "Commercial operator"
+}
+```
+
+#### Error Responses
+
+If the row does not exist:
+
+```json
+{
+  "detail": "operator_type_not_found"
+}
+```
+
+### `POST /operator-types`
+
+<Endpoint
+  method="POST"
+  path="/operator-types"
+  title="Create operator type"
+  permission="reference.write"
+  success="201 Created"
+  summary="Creates a reference row and writes a create audit event."
+/>
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/operator-types" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 1,
+    "code": "COMMERCIAL",
+    "description": "Commercial operator"
+  }'
+```
+
+#### Request Body
+
+Uses the shared reference body: `id`, `code`, and optional `description`.
+
+#### Response
+
+Success returns the created row. The service also writes an audit event with
+`entity_type: "operator_type"` and `action: "create"`.
+
+### `PUT /operator-types/:operatorTypeId`
+
+<Endpoint
+  method="PUT"
+  path="/operator-types/:operatorTypeId"
+  title="Replace operator type"
+  permission="reference.write"
+  success="200 OK"
+  summary="Replaces code and description for an operator type."
+/>
+
+```bash
+curl -X PUT "$CAA_REGISTRY_API_BASE_URL/operator-types/1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "COMMERCIAL",
+    "description": "Commercial or enterprise operator"
+  }'
+```
+
+#### Request Body
+
+The path ID controls the row identity. Any `id` in the body is ignored because
+the route merges the path ID over the body before validation.
+
+Success writes an audit event with before and after snapshots.
+
+### `DELETE /operator-types/:operatorTypeId`
+
+<Endpoint
+  method="DELETE"
+  path="/operator-types/:operatorTypeId"
+  title="Delete operator type"
+  permission="reference.delete"
+  success="200 OK"
+  summary="Deletes an operator type and returns the deleted row."
+/>
+
+```bash
+curl -X DELETE "$CAA_REGISTRY_API_BASE_URL/operator-types/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### Response
+
+Success returns the deleted row and writes an audit event with
+`action: "delete"`.
+
+If operators still reference this type, database referential behavior sets the
+operator `operator_type_id` to `null` because the foreign key is configured with
+`on delete set null`.
+
+## User Types
+
+User types map to `caa_registry_api.user_type`.
+
+### Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/user-types` | List user types. |
+| `GET` | `/user-types/:userTypeId` | Fetch one user type. |
+| `POST` | `/user-types` | Create a user type. |
+| `PUT` | `/user-types/:userTypeId` | Replace a user type. |
+| `DELETE` | `/user-types/:userTypeId` | Delete a user type. |
+
+### `GET /user-types`
+
+<Endpoint
+  method="GET"
+  path="/user-types"
+  title="List user types"
+  permission="reference.read"
+  success="200 OK"
+  summary="Returns paginated user type reference rows."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/user-types?limit=50&offset=0"
+```
+
+Rows are ordered by `user_type_id desc`.
+
+### `GET /user-types/:userTypeId`
+
+<Endpoint
+  method="GET"
+  path="/user-types/:userTypeId"
+  title="Fetch user type"
+  permission="reference.read"
+  success="200 OK"
+  summary="Returns one user type by smallint ID."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/user-types/1"
+```
+
+#### Path Parameters
+
+| Parameter | Required | Notes |
+| --- | --- | --- |
+| `userTypeId` | Yes | Smallint user type ID. |
+
+#### Response
+
+```json
+{
+  "user_type_id": 1,
+  "code": "ACCOUNTABLE_MANAGER",
+  "description": "Accountable manager"
+}
+```
+
+#### Error Responses
+
+If the row does not exist:
+
+```json
+{
+  "detail": "user_type_not_found"
+}
+```
+
+### `POST /user-types`
+
+<Endpoint
+  method="POST"
+  path="/user-types"
+  title="Create user type"
+  permission="reference.write"
+  success="201 Created"
+  summary="Creates a user type row and writes a create audit event."
+/>
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/user-types" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": 1,
+    "code": "ACCOUNTABLE_MANAGER",
+    "description": "Accountable manager"
+  }'
+```
+
+#### Request Body
+
+Uses the shared reference body: `id`, `code`, and optional `description`.
+
+#### Response
+
+Success returns the created row and writes an audit event with
+`entity_type: "user_type"`.
+
+### `PUT /user-types/:userTypeId`
+
+<Endpoint
+  method="PUT"
+  path="/user-types/:userTypeId"
+  title="Replace user type"
+  permission="reference.write"
+  success="200 OK"
+  summary="Replaces code and description for a user type."
+/>
+
+```bash
+curl -X PUT "$CAA_REGISTRY_API_BASE_URL/user-types/1" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "ACCOUNTABLE_MANAGER",
+    "description": "Primary accountable manager"
+  }'
+```
+
+### `DELETE /user-types/:userTypeId`
+
+<Endpoint
+  method="DELETE"
+  path="/user-types/:userTypeId"
+  title="Delete user type"
+  permission="reference.delete"
+  success="200 OK"
+  summary="Deletes a user type and returns the deleted row."
+/>
+
+```bash
+curl -X DELETE "$CAA_REGISTRY_API_BASE_URL/user-types/1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+If users still reference this type, database referential behavior sets the user
+`user_type_id` to `null`.
+
+## Validation Details
+
+| Detail | Trigger |
+| --- | --- |
+| `operator_type_id_invalid` | Operator type path ID or body `id` is missing or outside smallint range. |
+| `user_type_id_invalid` | User type path ID or body `id` is missing or outside smallint range. |
+| `code_required` | `code` is missing, not a string, or blank. |
+| `operator_type_not_found` | Requested operator type does not exist. |
+| `user_type_not_found` | Requested user type does not exist. |
+| `operator_type_create_failed` | Insert returned no row. |
+| `operator_type_update_failed` | Update returned no row. |
+| `operator_type_delete_failed` | Delete returned no row. |
+| `user_type_create_failed` | Insert returned no row. |
+| `user_type_update_failed` | Update returned no row. |
+| `user_type_delete_failed` | Delete returned no row. |

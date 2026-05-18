@@ -1,0 +1,201 @@
+---
+sidebar_position: 7
+title: Lookup and Search
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Lookup and Search
+
+Lookup and search endpoints support operational read workflows that span more
+than one table.
+
+## Permissions
+
+| Endpoint | Permission |
+| --- | --- |
+| `GET /lookup/uas/:registrationId` | `uas.read` |
+| `GET /search` | `search.read` |
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/lookup/uas/:registrationId` | Fetch a joined operational UAS view. |
+| `GET` | `/search` | Search across registry entities. |
+
+## `GET /lookup/uas/:registrationId`
+
+<Endpoint
+  method="GET"
+  path="/lookup/uas/:registrationId"
+  title="Lookup UAS registration"
+  permission="uas.read"
+  success="200 OK"
+  summary="Returns a complete operational view for one UAS registration ID."
+/>
+
+`GET /lookup/uas/:registrationId` returns a complete operational view for a UAS
+registration ID. It joins:
+
+| Key | Source |
+| --- | --- |
+| `uas` | `caa_registry_api.uas` |
+| `operator` | `caa_registry_api.operator` |
+| `organization` | `caa_registry_api.organization` |
+| `primary_user` | `caa_registry_api.user` |
+| `operator_type` | `caa_registry_api.operator_type` |
+| `aircraft` | `caa_registry_api.ua` |
+
+`operator` and `organization` are inner joins. `primary_user` and
+`operator_type` are left joins and can be `null`.
+
+### Request Example
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/lookup/uas/AE-UAS-0001"
+```
+
+### Path Parameters
+
+| Parameter | Required | Notes |
+| --- | --- | --- |
+| `registrationId` | Yes | Exact UAS `registration_id`. |
+
+### Response
+
+```json
+{
+  "uas": {
+    "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+    "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+    "registration_id": "AE-UAS-0001",
+    "serial_number": "SN-0001",
+    "model_name": "Surveyor X2",
+    "remote_id_capable": true,
+    "created_at": "2026-05-14T08:00:00.000Z",
+    "updated_at": "2026-05-14T08:00:00.000Z"
+  },
+  "operator": {
+    "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+    "approval_reference": "CAA-OP-2026-001"
+  },
+  "organization": {
+    "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+    "org_name": "Example Airspace Services"
+  },
+  "primary_user": {
+    "user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+    "full_name": "Amina Hassan",
+    "email": "amina@example.test"
+  },
+  "operator_type": {
+    "operator_type_id": 1,
+    "code": "COMMERCIAL"
+  },
+  "aircraft": [
+    {
+      "ua_id": "b028a7e5-9fd4-4d22-846f-98d4877907d6",
+      "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+      "aircraft_type": "multirotor"
+    }
+  ]
+}
+```
+
+The `aircraft` array is ordered by `created_at desc`, then `ua_id desc`.
+
+### Error Responses
+
+| Detail | Trigger |
+| --- | --- |
+| `registration_id_required` | Registration ID path value is missing or blank. |
+| `uas_not_found` | No UAS record has the supplied registration ID. |
+
+## `GET /search`
+
+<Endpoint
+  method="GET"
+  path="/search"
+  title="Global registry search"
+  permission="search.read"
+  success="200 OK"
+  summary="Searches organizations, users, operators, UAS records, and UA aircraft."
+/>
+
+`GET /search` performs a broad case-insensitive search across major registry
+entities. It runs separate queries for each entity type and returns separate
+result arrays.
+
+### Search Targets
+
+| Result key | Table | Matched fields |
+| --- | --- | --- |
+| `organizations` | `organization` | `org_name`, `contact_email`, `country_code` |
+| `users` | `user` | `full_name`, `email` |
+| `operators` | `operator` | `approval_reference` |
+| `uas` | `uas` | `registration_id`, `serial_number`, `model_name` |
+| `ua` | `ua` | `aircraft_type`, `propulsion_type` |
+
+### Request Example
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/search?q=AE-UAS&limit=10&offset=0"
+```
+
+### Query Parameters
+
+| Parameter | Required | Default | Maximum | Notes |
+| --- | --- | --- | --- | --- |
+| `q` | Yes | None | N/A | Search term. Must be at least two characters. |
+| `limit` | No | `10` | `50` | Applied independently to each result group. |
+| `offset` | No | `0` | `100000` | Applied independently to each result group. |
+
+### Response
+
+```json
+{
+  "organizations": [],
+  "users": [],
+  "operators": [],
+  "uas": [
+    {
+      "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+      "registration_id": "AE-UAS-0001",
+      "serial_number": "SN-0001"
+    }
+  ],
+  "ua": [],
+  "limit": 10,
+  "offset": 0,
+  "organizations_has_more": false,
+  "users_has_more": false,
+  "operators_has_more": false,
+  "uas_has_more": false,
+  "ua_has_more": false
+}
+```
+
+Each entity query independently fetches `limit + 1` records. The corresponding
+`*_has_more` flag is `true` when more rows exist for that entity type.
+
+### Sorting
+
+Each result group is ordered by `created_at desc`.
+
+### Error Responses
+
+| Detail | Trigger |
+| --- | --- |
+| `q_required` | `q` is missing or blank. |
+| `q_too_short` | `q` has fewer than two characters. |
+| `limit_invalid` | `limit` is outside `1..50` or is not an integer. |
+| `offset_invalid` | `offset` is outside `0..100000` or is not an integer. |
+
+## Lookup vs Search
+
+Use lookup when the caller has an exact UAS registration ID and needs a complete
+joined operational view. Use search when the caller has a free-text term and
+needs possible matches across registry entities.

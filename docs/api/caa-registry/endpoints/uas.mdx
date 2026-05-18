@@ -1,0 +1,352 @@
+---
+sidebar_position: 5
+title: UAS Records
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# UAS Records
+
+UAS records represent registered unmanned aircraft systems. They map to
+`caa_registry_api.uas` and belong to operators.
+
+## Permissions
+
+| Operation | Permission |
+| --- | --- |
+| List or fetch UAS records | `uas.read` |
+| Fetch UAS certificates | `uas.read` |
+| Lookup UAS by registration | `uas.read` |
+| Create or replace UAS records | `uas.write` |
+| Delete UAS records | `uas.delete` |
+| Read UAS history | `audit.read` |
+
+## UAS Resource
+
+```json
+{
+  "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+  "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+  "registration_id": "AE-UAS-0001",
+  "serial_number": "SN-0001",
+  "model_name": "Surveyor X2",
+  "remote_id_capable": true,
+  "created_at": "2026-05-14T08:00:00.000Z",
+  "updated_at": "2026-05-14T08:00:00.000Z"
+}
+```
+
+Fetching one UAS by ID returns the UAS fields plus an `aircraft` array of linked
+UA rows.
+
+## Write Body
+
+```json
+{
+  "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+  "registration_id": "AE-UAS-0001",
+  "serial_number": "SN-0001",
+  "model_name": "Surveyor X2",
+  "remote_id_capable": true
+}
+```
+
+| Field | Required | Validation |
+| --- | --- | --- |
+| `operator_id` | Yes | Operator must exist. |
+| `registration_id` | Yes | Non-empty string; unique in database. |
+| `serial_number` | Yes | Non-empty string; unique in database. |
+| `model_name` | No | Optional string; blank becomes `null`. |
+| `remote_id_capable` | No | Boolean or `"true"`/`"false"`; defaults to `true`. |
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/uas` | List and search UAS records. |
+| `GET` | `/uas/by-registration/:registrationId` | Fetch one UAS by registration ID. |
+| `GET` | `/uas/:uasId` | Fetch one UAS with linked UA aircraft. |
+| `GET` | `/uas/:uasId/certificates` | Fetch Remote ID certificates for one UAS. |
+| `POST` | `/uas` | Create a UAS record. |
+| `PUT` | `/uas/:uasId` | Replace a UAS record. |
+| `DELETE` | `/uas/:uasId` | Delete a UAS record when no UA aircraft are linked. |
+| `GET` | `/uas/:uasId/history` | Read UAS audit history. |
+
+## `GET /uas`
+
+<Endpoint
+  method="GET"
+  path="/uas"
+  title="List UAS records"
+  permission="uas.read"
+  success="200 OK"
+  summary="Returns paginated UAS records, optionally filtered by operator, Remote ID capability, and search text."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas?operator_id=4af8a923-2e8f-47f9-9c57-2a4f8ba4050e&remote_id_capable=true&q=AE-UAS"
+```
+
+### Query Parameters
+
+| Parameter | Default | Maximum | Notes |
+| --- | --- | --- | --- |
+| `limit` | `50` | `200` | Number of rows to return. |
+| `offset` | `0` | `100000` | Number of rows to skip. |
+| `operator_id` | None | N/A | Filters by operator. |
+| `remote_id_capable` | None | N/A | Boolean filter accepting `true` or `false`. |
+| `q` | None | N/A | Case-insensitive match against `registration_id`, `serial_number`, or `model_name`. |
+
+### Response
+
+Rows are ordered by `created_at desc`, then `uas_id desc`.
+
+## `GET /uas/by-registration/:registrationId`
+
+<Endpoint
+  method="GET"
+  path="/uas/by-registration/:registrationId"
+  title="Fetch UAS by registration ID"
+  permission="uas.read"
+  success="200 OK"
+  summary="Returns one UAS row by exact registration ID."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas/by-registration/AE-UAS-0001"
+```
+
+### Response
+
+Returns a UAS row only. For a richer operational view, use
+`GET /lookup/uas/:registrationId`.
+
+### Error Responses
+
+If no record matches:
+
+```json
+{
+  "detail": "uas_not_found"
+}
+```
+
+## `GET /uas/:uasId`
+
+<Endpoint
+  method="GET"
+  path="/uas/:uasId"
+  title="Fetch UAS by ID"
+  permission="uas.read"
+  success="200 OK"
+  summary="Returns one UAS row with linked UA aircraft records."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408"
+```
+
+### Response
+
+```json
+{
+  "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+  "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+  "registration_id": "AE-UAS-0001",
+  "serial_number": "SN-0001",
+  "model_name": "Surveyor X2",
+  "remote_id_capable": true,
+  "created_at": "2026-05-14T08:00:00.000Z",
+  "updated_at": "2026-05-14T08:00:00.000Z",
+  "aircraft": []
+}
+```
+
+The `aircraft` array is ordered by `created_at desc`, then `ua_id desc`.
+
+## `GET /uas/:uasId/certificates`
+
+<Endpoint
+  method="GET"
+  path="/uas/:uasId/certificates"
+  title="List Remote ID certificates for UAS"
+  permission="uas.read"
+  success="200 OK"
+  summary="Returns Remote ID certificate rows for one UAS."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408/certificates"
+```
+
+### Response
+
+The route first verifies the UAS exists, then reads from
+`remote_id_uss_api.remote_id_certificate`.
+
+Certificate response:
+
+```json
+{
+  "items": [
+    {
+      "remote_id_certificate_id": "6e6cdb4a-b9db-4e3a-b995-dac09f65c48c",
+      "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+      "certificate_authority_id": "7bc7ff80-7acc-4bff-a04d-dc9d81e3a405",
+      "certificate_reference": "RID-CERT-001",
+      "subject_name": "AE-UAS-0001",
+      "valid_from": "2026-01-01T00:00:00.000Z",
+      "valid_to": "2027-01-01T00:00:00.000Z",
+      "is_active": true,
+      "created_at": "2026-05-14T08:00:00.000Z"
+    }
+  ],
+  "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408"
+}
+```
+
+Certificate rows are ordered by `created_at desc`.
+
+## `POST /uas`
+
+<Endpoint
+  method="POST"
+  path="/uas"
+  title="Create UAS record"
+  permission="uas.write"
+  success="201 Created"
+  summary="Creates a UAS record after validating the linked operator."
+/>
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/uas" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+    "registration_id": "AE-UAS-0001",
+    "serial_number": "SN-0001",
+    "model_name": "Surveyor X2",
+    "remote_id_capable": true
+  }'
+```
+
+### Request Body
+
+Uses the UAS write body documented above.
+
+### Error Responses
+
+The API verifies the operator exists before insert. Missing operators return:
+
+```json
+{
+  "detail": "operator_not_found"
+}
+```
+
+### Response
+
+Success returns the created row and writes an audit event with
+`entity_type: "uas"` and `action: "create"`.
+
+## `PUT /uas/:uasId`
+
+<Endpoint
+  method="PUT"
+  path="/uas/:uasId"
+  title="Replace UAS record"
+  permission="uas.write"
+  success="200 OK"
+  summary="Replaces all writable UAS fields."
+/>
+
+```bash
+curl -X PUT "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+    "registration_id": "AE-UAS-0001",
+    "serial_number": "SN-0001",
+    "model_name": "Surveyor X3",
+    "remote_id_capable": true
+  }'
+```
+
+### Request Body
+
+Uses the UAS write body documented above. Replacement updates all writable
+fields and sets `updated_at` to database
+`now()`.
+
+## `DELETE /uas/:uasId`
+
+<Endpoint
+  method="DELETE"
+  path="/uas/:uasId"
+  title="Delete UAS record"
+  permission="uas.delete"
+  success="200 OK"
+  summary="Deletes a UAS only when no UA aircraft records are linked."
+/>
+
+```bash
+curl -X DELETE "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Error Responses
+
+The API blocks deletion when any UA aircraft record references the UAS:
+
+```json
+{
+  "detail": "uas_has_aircraft"
+}
+```
+
+### Response
+
+When deletion succeeds, the deleted row is returned and an audit event is
+written.
+
+## `GET /uas/:uasId/history`
+
+<Endpoint
+  method="GET"
+  path="/uas/:uasId/history"
+  title="List UAS audit history"
+  permission="audit.read"
+  success="200 OK"
+  summary="Returns audit rows for one UAS."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408/history?limit=100"
+```
+
+Requires `audit.read`. Returns audit rows for `entity_type = "uas"` and the
+supplied `uas_id`, ordered newest first.
+
+## Validation Details
+
+| Detail | Trigger |
+| --- | --- |
+| `uas_id_required` | Path `uasId` is missing or blank. |
+| `operator_id_required` | Body `operator_id` is missing or blank. |
+| `registration_id_required` | `registration_id` is missing or blank. |
+| `serial_number_required` | `serial_number` is missing or blank. |
+| `boolean_invalid` | `remote_id_capable` is not a boolean or accepted string. |
+| `boolean_query_invalid` | Query `remote_id_capable` is not `true` or `false`. |
+| `operator_not_found` | Supplied operator does not exist. |
+| `uas_not_found` | Requested UAS does not exist. |
+| `uas_has_aircraft` | Delete attempted while linked UA aircraft exist. |
+| `uas_create_failed` | Insert returned no row. |
+| `uas_update_failed` | Update returned no row. |
+| `uas_delete_failed` | Delete returned no row. |

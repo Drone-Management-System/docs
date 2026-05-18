@@ -1,0 +1,283 @@
+---
+sidebar_position: 6
+title: UA Aircraft
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# UA Aircraft
+
+UA aircraft records represent individual aircraft linked to UAS registrations.
+They map to `caa_registry_api.ua`.
+
+## Permissions
+
+| Operation | Permission |
+| --- | --- |
+| List or fetch UA aircraft | `ua.read` |
+| Create or replace UA aircraft | `ua.write` |
+| Delete UA aircraft | `ua.delete` |
+| Read UA history | `audit.read` |
+
+## UA Resource
+
+```json
+{
+  "ua_id": "b028a7e5-9fd4-4d22-846f-98d4877907d6",
+  "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+  "aircraft_type": "multirotor",
+  "propulsion_type": "electric",
+  "mass_kg": "12.50",
+  "max_airspeed_mps": "18.00",
+  "max_altitude_m": "120.00",
+  "endurance_minutes": 45,
+  "created_at": "2026-05-14T08:00:00.000Z",
+  "updated_at": "2026-05-14T08:00:00.000Z"
+}
+```
+
+PostgreSQL `numeric` fields are returned as strings by the database driver.
+
+## Write Body
+
+```json
+{
+  "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+  "aircraft_type": "multirotor",
+  "propulsion_type": "electric",
+  "mass_kg": "12.50",
+  "max_airspeed_mps": "18.00",
+  "max_altitude_m": "120.00",
+  "endurance_minutes": 45
+}
+```
+
+| Field | Required | Validation |
+| --- | --- | --- |
+| `uas_id` | Yes | UAS must exist. |
+| `aircraft_type` | Yes | Non-empty string. |
+| `propulsion_type` | No | Optional string; blank becomes `null`. |
+| `mass_kg` | No | Optional numeric string or number, minimum `0`. |
+| `max_airspeed_mps` | No | Optional numeric string or number, minimum `0`. |
+| `max_altitude_m` | No | Optional numeric string or number, minimum `0`. |
+| `endurance_minutes` | No | Optional integer, minimum `1`. |
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/ua` | List and search UA aircraft. |
+| `GET` | `/uas/:uasId/ua` | List UA aircraft under a UAS. |
+| `GET` | `/ua/:uaId` | Fetch one UA aircraft. |
+| `POST` | `/ua` | Create a UA aircraft record. |
+| `PUT` | `/ua/:uaId` | Replace a UA aircraft record. |
+| `DELETE` | `/ua/:uaId` | Delete a UA aircraft record. |
+| `GET` | `/ua/:uaId/history` | Read UA audit history. |
+
+## `GET /ua`
+
+<Endpoint
+  method="GET"
+  path="/ua"
+  title="List UA aircraft"
+  permission="ua.read"
+  success="200 OK"
+  summary="Returns paginated UA aircraft, optionally filtered by UAS and aircraft type search."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/ua?uas_id=faef7df9-972e-4a1d-a6e3-97687b244408&q=multi"
+```
+
+### Query Parameters
+
+| Parameter | Default | Maximum | Notes |
+| --- | --- | --- | --- |
+| `limit` | `50` | `200` | Number of rows to return. |
+| `offset` | `0` | `100000` | Number of rows to skip. |
+| `uas_id` | None | N/A | Filters by parent UAS. |
+| `q` | None | N/A | Case-insensitive match against `aircraft_type`. |
+
+### Response
+
+Rows are ordered by `created_at desc`, then `ua_id desc`.
+
+## `GET /uas/:uasId/ua`
+
+<Endpoint
+  method="GET"
+  path="/uas/:uasId/ua"
+  title="List UA aircraft under UAS"
+  permission="ua.read"
+  success="200 OK"
+  summary="Returns paginated UA aircraft records for one UAS."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/uas/faef7df9-972e-4a1d-a6e3-97687b244408/ua?limit=50&offset=0"
+```
+
+### Error Responses
+
+The route first verifies that the UAS exists. If it does not:
+
+```json
+{
+  "detail": "uas_not_found"
+}
+```
+
+### Response
+
+Success returns a standard paged result of UA rows.
+
+## `GET /ua/:uaId`
+
+<Endpoint
+  method="GET"
+  path="/ua/:uaId"
+  title="Fetch UA aircraft"
+  permission="ua.read"
+  success="200 OK"
+  summary="Returns one UA aircraft record by UUID."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/ua/b028a7e5-9fd4-4d22-846f-98d4877907d6"
+```
+
+### Error Responses
+
+If the UA record does not exist:
+
+```json
+{
+  "detail": "ua_not_found"
+}
+```
+
+## `POST /ua`
+
+<Endpoint
+  method="POST"
+  path="/ua"
+  title="Create UA aircraft"
+  permission="ua.write"
+  success="201 Created"
+  summary="Creates a UA aircraft record after validating the linked UAS."
+/>
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/ua" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+    "aircraft_type": "multirotor",
+    "propulsion_type": "electric",
+    "mass_kg": "12.50",
+    "max_airspeed_mps": "18.00",
+    "max_altitude_m": "120.00",
+    "endurance_minutes": 45
+  }'
+```
+
+### Request Body
+
+Uses the UA aircraft write body documented above.
+
+### Response
+
+The API verifies that the UAS exists before insert. Success returns the created
+row and writes an audit event with `entity_type: "ua"` and `action: "create"`.
+
+## `PUT /ua/:uaId`
+
+<Endpoint
+  method="PUT"
+  path="/ua/:uaId"
+  title="Replace UA aircraft"
+  permission="ua.write"
+  success="200 OK"
+  summary="Replaces all writable UA aircraft fields."
+/>
+
+```bash
+curl -X PUT "$CAA_REGISTRY_API_BASE_URL/ua/b028a7e5-9fd4-4d22-846f-98d4877907d6" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "uas_id": "faef7df9-972e-4a1d-a6e3-97687b244408",
+    "aircraft_type": "multirotor",
+    "propulsion_type": "electric",
+    "mass_kg": "13.00",
+    "max_airspeed_mps": "19.00",
+    "max_altitude_m": "120.00",
+    "endurance_minutes": 40
+  }'
+```
+
+### Request Body
+
+Uses the UA aircraft write body documented above. Replacement updates all
+writable fields and sets `updated_at` to database
+`now()`.
+
+## `DELETE /ua/:uaId`
+
+<Endpoint
+  method="DELETE"
+  path="/ua/:uaId"
+  title="Delete UA aircraft"
+  permission="ua.delete"
+  success="200 OK"
+  summary="Deletes a UA aircraft record and returns the deleted row."
+/>
+
+```bash
+curl -X DELETE "$CAA_REGISTRY_API_BASE_URL/ua/b028a7e5-9fd4-4d22-846f-98d4877907d6" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Response
+
+Success returns the deleted row and writes an audit event.
+
+## `GET /ua/:uaId/history`
+
+<Endpoint
+  method="GET"
+  path="/ua/:uaId/history"
+  title="List UA aircraft audit history"
+  permission="audit.read"
+  success="200 OK"
+  summary="Returns audit rows for one UA aircraft record."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/ua/b028a7e5-9fd4-4d22-846f-98d4877907d6/history?limit=100"
+```
+
+Requires `audit.read`. Returns audit rows for `entity_type = "ua"` and the
+supplied `ua_id`, ordered newest first.
+
+## Validation Details
+
+| Detail | Trigger |
+| --- | --- |
+| `ua_id_required` | Path `uaId` is missing or blank. |
+| `uas_id_required` | Body or path `uas_id` is missing or blank. |
+| `aircraft_type_required` | `aircraft_type` is missing or blank. |
+| `mass_kg_invalid` | `mass_kg` is not numeric or is negative. |
+| `max_airspeed_mps_invalid` | `max_airspeed_mps` is not numeric or is negative. |
+| `max_altitude_m_invalid` | `max_altitude_m` is not numeric or is negative. |
+| `endurance_minutes_invalid` | `endurance_minutes` is not an integer or is less than `1`. |
+| `uas_not_found` | Supplied or requested UAS does not exist. |
+| `ua_not_found` | Requested UA record does not exist. |
+| `ua_create_failed` | Insert returned no row. |
+| `ua_update_failed` | Update returned no row. |
+| `ua_delete_failed` | Delete returned no row. |

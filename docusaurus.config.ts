@@ -1,13 +1,53 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import {existsSync, readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+function loadEnvFile(fileName: string): void {
+  const envPath = resolve(process.cwd(), fileName);
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  const lines = readFileSync(envPath, 'utf8').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1).trim();
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    process.env[key] = rawValue.replace(/^["']|["']$/g, '');
+  }
+}
+
+loadEnvFile('.env.local');
+loadEnvFile('.env');
+
+const caaRegistryApiBaseUrl =
+  process.env.DOCS_CAA_REGISTRY_API_BASE_URL ??
+  'https://caa-registry-api.example.com';
+
 const config: Config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
+  title: 'DMS Backend Docs',
+  tagline: 'Public API references and backend module architecture',
   favicon: 'img/favicon.ico',
+  customFields: {
+    caaRegistryApiBaseUrl,
+  },
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -22,8 +62,8 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'dms',
+  projectName: 'dms-docs',
 
   onBrokenLinks: 'throw',
 
@@ -41,26 +81,8 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
-          },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -75,23 +97,17 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'My Site',
+      title: 'DMS Backend Docs',
       logo: {
-        alt: 'My Site Logo',
+        alt: 'DMS Backend Docs Logo',
         src: 'img/logo.svg',
       },
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
+          sidebarId: 'backendSidebar',
           position: 'left',
-          label: 'Tutorial',
-        },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {
-          href: 'https://github.com/facebook/docusaurus',
-          label: 'GitHub',
-          position: 'right',
+          label: 'Docs',
         },
       ],
     },
@@ -102,43 +118,43 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Tutorial',
+              label: 'Overview',
               to: '/docs/intro',
             },
-          ],
-        },
-        {
-          title: 'Community',
-          items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'API Reference',
+              to: '/docs/api/overview',
             },
           ],
         },
         {
-          title: 'More',
+          title: 'API Reference',
           items: [
             {
-              label: 'Blog',
-              to: '/blog',
+              label: 'API Catalog',
+              to: '/docs/api/overview',
             },
             {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              label: 'CAA Registry',
+              to: '/docs/api/caa-registry/overview',
+            },
+          ],
+        },
+        {
+          title: 'Module Architecture',
+          items: [
+            {
+              label: 'CAA Registry Module',
+              to: '/docs/modules/caa-registry/overview',
+            },
+            {
+              label: 'Data Model',
+              to: '/docs/modules/caa-registry/data-model',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} DMS Backend Docs.`,
     },
     prism: {
       theme: prismThemes.github,

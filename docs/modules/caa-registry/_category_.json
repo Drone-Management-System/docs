@@ -1,0 +1,9 @@
+{
+  "label": "CAA Registry Module",
+  "position": 10,
+  "link": {
+    "type": "doc",
+    "id": "modules/caa-registry/overview"
+  },
+  "collapsed": false
+}

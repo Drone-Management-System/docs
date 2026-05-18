@@ -1,0 +1,347 @@
+---
+sidebar_position: 4
+title: Operators
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Operators
+
+Operators represent approved entities that operate UAS registrations. They map
+to `caa_registry_api.operator`.
+
+## Permissions
+
+| Operation | Permission |
+| --- | --- |
+| List or fetch operators | `operators.read` |
+| List UAS under an operator | `operators.read` |
+| Create or replace operators | `operators.write` |
+| Delete operators | `operators.delete` |
+| Read operator history | `audit.read` |
+
+## Operator Resource
+
+The list endpoint returns operator rows:
+
+```json
+{
+  "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+  "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+  "primary_user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+  "operator_type_id": 1,
+  "approval_reference": "CAA-OP-2026-001",
+  "approval_valid_from": "2026-01-01",
+  "approval_valid_to": "2026-12-31",
+  "created_at": "2026-05-14T08:00:00.000Z",
+  "updated_at": "2026-05-14T08:00:00.000Z"
+}
+```
+
+Fetching a single operator returns a joined object:
+
+```json
+{
+  "operator": {},
+  "organization": {},
+  "primary_user": {},
+  "operator_type": {}
+}
+```
+
+`primary_user` and `operator_type` can be `null` because those joins are left
+joins. `organization` is always present for a valid operator because the join is
+inner and `org_id` is required.
+
+## Write Body
+
+```json
+{
+  "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+  "primary_user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+  "operator_type_id": 1,
+  "approval_reference": "CAA-OP-2026-001",
+  "approval_valid_from": "2026-01-01",
+  "approval_valid_to": "2026-12-31"
+}
+```
+
+| Field | Required | Validation |
+| --- | --- | --- |
+| `org_id` | Yes | Organization must exist. |
+| `primary_user_id` | No | User must exist when supplied. If the user has an `org_id`, it must match the operator `org_id`. |
+| `operator_type_id` | No | Must be a valid smallint and reference an existing operator type when supplied. |
+| `approval_reference` | No | Optional string; unique when supplied. |
+| `approval_valid_from` | No | Optional `YYYY-MM-DD`. |
+| `approval_valid_to` | No | Optional `YYYY-MM-DD`; cannot be before `approval_valid_from`. |
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/operators` | List and search operators. |
+| `GET` | `/operators/:operatorId` | Fetch one operator with joined organization, primary user, and operator type. |
+| `GET` | `/operators/:operatorId/uas` | List UAS records owned by an operator. |
+| `POST` | `/operators` | Create an operator. |
+| `PUT` | `/operators/:operatorId` | Replace an operator. |
+| `DELETE` | `/operators/:operatorId` | Delete an operator when no UAS records are linked. |
+| `GET` | `/operators/:operatorId/history` | Read operator audit history. |
+
+## `GET /operators`
+
+<Endpoint
+  method="GET"
+  path="/operators"
+  title="List operators"
+  permission="operators.read"
+  success="200 OK"
+  summary="Returns paginated operators, optionally filtered by organization, operator type, and approval reference."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operators?org_id=8c3198d0-6f9d-4a41-b276-6b60da0bdf54&operator_type_id=1&q=CAA-OP"
+```
+
+### Query Parameters
+
+| Parameter | Default | Maximum | Notes |
+| --- | --- | --- | --- |
+| `limit` | `50` | `200` | Number of rows to return. |
+| `offset` | `0` | `100000` | Number of rows to skip. |
+| `org_id` | None | N/A | Filters by organization. |
+| `operator_type_id` | None | N/A | Filters by operator type. Must be a valid smallint. |
+| `q` | None | N/A | Case-insensitive match against `approval_reference`. |
+
+### Response
+
+Rows are ordered by `created_at desc`, then `operator_id desc`.
+
+## `GET /operators/:operatorId`
+
+<Endpoint
+  method="GET"
+  path="/operators/:operatorId"
+  title="Fetch operator"
+  permission="operators.read"
+  success="200 OK"
+  summary="Returns one operator with joined organization, primary user, and operator type."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operators/4af8a923-2e8f-47f9-9c57-2a4f8ba4050e"
+```
+
+### Path Parameters
+
+| Parameter | Required | Notes |
+| --- | --- | --- |
+| `operatorId` | Yes | Operator UUID. |
+
+### Response
+
+```json
+{
+  "operator": {
+    "operator_id": "4af8a923-2e8f-47f9-9c57-2a4f8ba4050e",
+    "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+    "primary_user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+    "operator_type_id": 1,
+    "approval_reference": "CAA-OP-2026-001",
+    "approval_valid_from": "2026-01-01",
+    "approval_valid_to": "2026-12-31",
+    "created_at": "2026-05-14T08:00:00.000Z",
+    "updated_at": "2026-05-14T08:00:00.000Z"
+  },
+  "organization": {
+    "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+    "org_name": "Example Airspace Services"
+  },
+  "primary_user": {
+    "user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+    "full_name": "Amina Hassan"
+  },
+  "operator_type": {
+    "operator_type_id": 1,
+    "code": "COMMERCIAL"
+  }
+}
+```
+
+### Error Responses
+
+If the operator does not exist:
+
+```json
+{
+  "detail": "operator_not_found"
+}
+```
+
+## `GET /operators/:operatorId/uas`
+
+<Endpoint
+  method="GET"
+  path="/operators/:operatorId/uas"
+  title="List UAS for operator"
+  permission="operators.read"
+  success="200 OK"
+  summary="Returns paginated UAS rows owned by one operator."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operators/4af8a923-2e8f-47f9-9c57-2a4f8ba4050e/uas?limit=50&offset=0"
+```
+
+### Response
+
+The route first verifies the operator exists. It returns a standard paged result
+of UAS rows ordered by `created_at desc`, then `uas_id desc`.
+
+## `POST /operators`
+
+<Endpoint
+  method="POST"
+  path="/operators"
+  title="Create operator"
+  permission="operators.write"
+  success="201 Created"
+  summary="Creates an operator after validating linked organization, user, and operator type records."
+/>
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/operators" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+    "primary_user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+    "operator_type_id": 1,
+    "approval_reference": "CAA-OP-2026-001",
+    "approval_valid_from": "2026-01-01",
+    "approval_valid_to": "2026-12-31"
+  }'
+```
+
+### Request Body
+
+Uses the operator write body documented above.
+
+### Error Responses
+
+Reference validation occurs before insert:
+
+| Reference | Error when invalid |
+| --- | --- |
+| `org_id` | `organization_not_found` |
+| `primary_user_id` | `primary_user_not_found` |
+| `primary_user_id` with mismatched user organization | `primary_user_org_mismatch` |
+| `operator_type_id` | `operator_type_not_found` |
+
+### Response
+
+Success returns the created row and writes an audit event with
+`entity_type: "operator"` and `action: "create"`.
+
+## `PUT /operators/:operatorId`
+
+<Endpoint
+  method="PUT"
+  path="/operators/:operatorId"
+  title="Replace operator"
+  permission="operators.write"
+  success="200 OK"
+  summary="Replaces all writable operator fields."
+/>
+
+```bash
+curl -X PUT "$CAA_REGISTRY_API_BASE_URL/operators/4af8a923-2e8f-47f9-9c57-2a4f8ba4050e" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_id": "8c3198d0-6f9d-4a41-b276-6b60da0bdf54",
+    "primary_user_id": "afdf33ff-3db4-4972-b89a-2ea1f9e0a708",
+    "operator_type_id": 1,
+    "approval_reference": "CAA-OP-2026-002",
+    "approval_valid_from": "2026-02-01",
+    "approval_valid_to": "2027-01-31"
+  }'
+```
+
+### Request Body
+
+Uses the operator write body documented above. Replacement updates all writable
+fields and sets `updated_at` to database
+`now()`. Success writes before and after audit snapshots.
+
+## `DELETE /operators/:operatorId`
+
+<Endpoint
+  method="DELETE"
+  path="/operators/:operatorId"
+  title="Delete operator"
+  permission="operators.delete"
+  success="200 OK"
+  summary="Deletes an operator only when no UAS records are linked."
+/>
+
+```bash
+curl -X DELETE "$CAA_REGISTRY_API_BASE_URL/operators/4af8a923-2e8f-47f9-9c57-2a4f8ba4050e" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Error Responses
+
+The API blocks deletion when any UAS record references the operator:
+
+```json
+{
+  "detail": "operator_has_uas"
+}
+```
+
+### Response
+
+When deletion succeeds, the deleted row is returned and an audit event is
+written.
+
+## `GET /operators/:operatorId/history`
+
+<Endpoint
+  method="GET"
+  path="/operators/:operatorId/history"
+  title="List operator audit history"
+  permission="audit.read"
+  success="200 OK"
+  summary="Returns audit rows for one operator."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/operators/4af8a923-2e8f-47f9-9c57-2a4f8ba4050e/history?limit=100"
+```
+
+Requires `audit.read`. Returns audit rows for `entity_type = "operator"` and
+the supplied `operator_id`, ordered newest first.
+
+## Validation Details
+
+| Detail | Trigger |
+| --- | --- |
+| `operator_id_required` | Path `operatorId` is missing or blank. |
+| `org_id_required` | Body `org_id` is missing or blank. |
+| `operator_type_id_invalid` | `operator_type_id` is not a valid smallint. |
+| `approval_valid_from_invalid` | `approval_valid_from` is not `YYYY-MM-DD`. |
+| `approval_valid_to_invalid` | `approval_valid_to` is not `YYYY-MM-DD`. |
+| `approval_valid_to_before_from` | Approval end date is before start date. |
+| `organization_not_found` | Supplied organization does not exist. |
+| `primary_user_not_found` | Supplied primary user does not exist. |
+| `primary_user_org_mismatch` | Supplied primary user belongs to a different organization. |
+| `operator_type_not_found` | Supplied operator type does not exist. |
+| `operator_not_found` | Requested operator does not exist. |
+| `operator_has_uas` | Delete attempted while linked UAS records exist. |
+| `operator_create_failed` | Insert returned no row. |
+| `operator_update_failed` | Update returned no row. |
+| `operator_delete_failed` | Delete returned no row. |
