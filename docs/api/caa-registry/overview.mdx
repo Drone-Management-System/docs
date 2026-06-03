@@ -49,12 +49,14 @@ curl -H "Authorization: Bearer $TOKEN" \
 | [Reference data](./endpoints/reference-data) | `/operator-types`, `/user-types` | Manage operator and user classification values. |
 | [Organizations](./endpoints/organizations) | `/organizations` | Manage registry organizations. |
 | [Users](./endpoints/users) | `/users` | Manage registry users. |
+| [ZITADEL integrations](./endpoints/zitadel-integrations) | `/integrations/zitadel/users` | Receive signed identity lifecycle events. |
 | [Operators](./endpoints/operators) | `/operators` | Manage approved operators. |
 | [UAS records](./endpoints/uas) | `/uas` | Manage UAS registrations and certificates. |
 | [UA aircraft](./endpoints/ua-aircraft) | `/ua`, `/uas/:uasId/ua` | Manage aircraft records under UAS registrations. |
 | [Lookup](./endpoints/lookup-and-search) | `/lookup/uas/:registrationId` | Fetch an operational UAS registration view. |
 | [Search](./endpoints/lookup-and-search) | `/search` | Search across registry entities. |
 | [Audit](./endpoints/audit) | `/audit`, `/:entity/:id/history` | Read write history. |
+| [System jobs](./endpoints/system-jobs) | `/system/jobs` | Queue and inspect durable background jobs. |
 
 ## `GET /health`
 

@@ -1,0 +1,258 @@
+---
+sidebar_position: 9
+title: System Jobs
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# System Jobs
+
+System job endpoints let admins queue and inspect durable background work.
+
+The current job is ZITADEL user reconciliation. It repairs missed ZITADEL Action
+callbacks by reading ZITADEL user lifecycle events and syncing the same state
+into CAA Registry.
+
+## Permissions
+
+| Operation | Permission |
+| --- | --- |
+| Queue ZITADEL user sync | `users.write` |
+| Read job status | `users.read` |
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/system/jobs` | List system jobs with status filters. |
+| `POST` | `/system/jobs/zitadel-user-sync` | Queue ZITADEL user reconciliation. |
+| `GET` | `/system/jobs/zitadel-user-sync/status` | Read ZITADEL sync cursor and latest job state. |
+| `GET` | `/system/jobs/:jobId` | Read one system job status. |
+
+## `GET /system/jobs`
+
+<Endpoint
+  method="GET"
+  path="/system/jobs"
+  title="List system jobs"
+  permission="users.read"
+  success="200 OK"
+  summary="Returns recent system jobs with optional type, status, active, and actor filters."
+/>
+
+```bash
+curl "$CAA_REGISTRY_API_BASE_URL/system/jobs?active=true&limit=20" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Query Parameters
+
+| Field | Notes |
+| --- | --- |
+| `type` | Optional job type, currently `zitadel_user_reconciliation`. |
+| `status` | Optional comma-separated statuses: `queued`, `running`, `completed`, `failed`. |
+| `active` | Optional boolean. `true` means `queued` or `running`; `false` means `completed` or `failed`. Ignored when `status` is supplied. |
+| `created_by_subject` | Optional user subject filter. |
+| `limit` | Default `50`, max `200`. |
+| `offset` | Default `0`. |
+
+```json
+{
+  "items": [
+    {
+      "id": "f9e0b64f-77c4-4d74-8b61-1e8b0fc8f4bb",
+      "type": "zitadel_user_reconciliation",
+      "status": "running",
+      "resultSummary": "Synced 25 Zitadel users from events: 10 created, 2 updated, 1 deleted, 0 missing, 12 unchanged, 0 skipped, 0 failed."
+    }
+  ],
+  "limit": 20,
+  "offset": 0,
+  "has_more": false,
+  "filters": {
+    "type": null,
+    "status": null,
+    "active": true,
+    "created_by_subject": null
+  }
+}
+```
+
+## `POST /system/jobs/zitadel-user-sync`
+
+<Endpoint
+  method="POST"
+  path="/system/jobs/zitadel-user-sync"
+  title="Queue ZITADEL user sync"
+  permission="users.write"
+  success="202 Accepted"
+  summary="Queues a durable ZITADEL user reconciliation job."
+/>
+
+Default request:
+
+```bash
+curl -X POST "$CAA_REGISTRY_API_BASE_URL/system/jobs/zitadel-user-sync" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"mode":"events","limit":100}'
+```
+
+### Request Body
+
+| Field | Default | Notes |
+| --- | --- | --- |
+| `mode` | `events` | `events` reads ZITADEL lifecycle event deltas. `full_scan` paginates all users up to `limit`. |
+| `dryRun` | `false` | When `true`, checks what would be processed without writing users or cursor state. |
+| `limit` | Config default | Max events/users to process in this job. |
+| `fromSequence` | Stored cursor | Optional event sequence override for event mode. |
+| `fromDate` | Stored cursor | Optional RFC3339 timestamp override for event mode when no sequence is available. |
+| `commitCursor` | `true` | Whether successful event-mode jobs update the stored cursor. Ignored for dry runs. |
+
+Use `events` for normal operation:
+
+```json
+{
+  "mode": "events",
+  "limit": 100
+}
+```
+
+Use `full_scan` only for backfill or audit work:
+
+```json
+{
+  "mode": "full_scan",
+  "limit": 1000
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "job": {
+    "id": "f9e0b64f-77c4-4d74-8b61-1e8b0fc8f4bb",
+    "type": "zitadel_user_reconciliation",
+    "status": "queued",
+    "createdAt": "2026-06-03T10:15:00.000Z"
+  }
+}
+```
+
+## `GET /system/jobs/zitadel-user-sync/status`
+
+<Endpoint
+  method="GET"
+  path="/system/jobs/zitadel-user-sync/status"
+  title="Read ZITADEL sync status"
+  permission="users.read"
+  success="200 OK"
+  summary="Returns the ZITADEL event cursor, active flag, counts by status, and latest jobs."
+/>
+
+```bash
+curl "$CAA_REGISTRY_API_BASE_URL/system/jobs/zitadel-user-sync/status" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "success": true,
+  "sync": {
+    "type": "zitadel_user_reconciliation",
+    "cursor": {
+      "lastSequence": 42042,
+      "updatedAt": "2026-06-03T10:15:04.000Z"
+    },
+    "counts": {
+      "queued": 0,
+      "running": 1,
+      "completed": 4,
+      "failed": 1
+    },
+    "active": true,
+    "latestActiveJob": {
+      "id": "a0eb15a0-9c4f-4088-80be-92ff51cf3df0",
+      "status": "running"
+    },
+    "latestCompletedJob": {
+      "id": "f9e0b64f-77c4-4d74-8b61-1e8b0fc8f4bb",
+      "status": "completed"
+    },
+    "latestFailedJob": null
+  }
+}
+```
+
+## `GET /system/jobs/:jobId`
+
+<Endpoint
+  method="GET"
+  path="/system/jobs/:jobId"
+  title="Read system job status"
+  permission="users.read"
+  success="200 OK"
+  summary="Returns status, progress payload, result summary, and errors for one job."
+/>
+
+```bash
+curl "$CAA_REGISTRY_API_BASE_URL/system/jobs/$JOB_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "job": {
+    "id": "f9e0b64f-77c4-4d74-8b61-1e8b0fc8f4bb",
+    "type": "zitadel_user_reconciliation",
+    "status": "completed",
+    "payload": {
+      "mode": "events",
+      "counts": {
+        "events": 2,
+        "processed": 2,
+        "created": 1,
+        "updated": 0,
+        "deleted": 0,
+        "missing": 0,
+        "unchanged": 1,
+        "skipped": 0,
+        "failed": 0
+      },
+      "cursorAfter": {
+        "lastSequence": 42042
+      }
+    },
+    "resultSummary": "Synced 2 Zitadel users from events: 1 created, 0 updated, 0 deleted, 0 missing, 1 unchanged, 0 skipped, 0 failed.",
+    "errorMessage": null,
+    "startedAt": "2026-06-03T10:15:02.000Z",
+    "completedAt": "2026-06-03T10:15:04.000Z",
+    "failedAt": null,
+    "createdAt": "2026-06-03T10:15:00.000Z",
+    "updatedAt": "2026-06-03T10:15:04.000Z"
+  }
+}
+```
+
+### Status Values
+
+| Status | Meaning |
+| --- | --- |
+| `queued` | Waiting for the worker. |
+| `running` | Claimed by the worker. |
+| `completed` | Finished successfully. |
+| `failed` | Failed or was recovered as stale. |
+
+## Operational Notes
+
+- Normal sync should use `events` mode.
+- Event mode repairs missed `user.human.added` and `user.removed` callbacks.
+- `full_scan` mode is intentionally capped and should be used sparingly.
+- The worker must be running for queued jobs to progress.
+- Failed jobs are not retried automatically; queue a new job after fixing the
+  underlying issue.

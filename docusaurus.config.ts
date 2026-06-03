@@ -57,6 +57,9 @@ const config: Config = {
   url: 'https://drone-management-system.github.io',
   baseUrl: '/docs/',
   trailingSlash: false,
+  markdown: {
+    mermaid: true,
+  },
 
   organizationName: 'Drone-Management-System',
   projectName: 'docs',
@@ -86,6 +89,7 @@ const config: Config = {
       } satisfies Preset.Options,
     ],
   ],
+  themes: ['@docusaurus/theme-mermaid'],
 
   themeConfig: {
     // Replace with your project's social card

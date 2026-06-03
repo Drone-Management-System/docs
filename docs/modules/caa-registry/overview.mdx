@@ -26,10 +26,12 @@ The service owns the CAA registry slice of the backend data model:
 | Reference data | `caa_registry_api.operator_type`, `caa_registry_api.user_type` |
 | Organizations | `caa_registry_api.organization` |
 | Registry users | `caa_registry_api.user` |
+| External identity links | `caa_registry_api.user_identity` |
 | Operators | `caa_registry_api.operator` |
 | UAS registrations | `caa_registry_api.uas` |
 | UA aircraft | `caa_registry_api.ua` |
 | Audit trail | `public.audit_log` |
+| Background jobs | `system_jobs`, `system_job_state` |
 
 The UAS certificate endpoint also reads Remote ID certificate data from
 `remote_id_uss_api.remote_id_certificate`. That table is external to this
@@ -51,6 +53,7 @@ maintainer map, not the public API reference.
 | `uaRoutes` | `/ua`, `/uas/:uasId/ua` | UA aircraft CRUD and audit writes. |
 | `lookupRoutes` | `/lookup/uas/:registrationId` | Joined operational UAS lookup. |
 | `searchRoutes` | `/search` | Multi-table registry search. |
+| `systemJobRoutes` | `/system/jobs` | Durable background job queue and status routes. |
 | `auditRoutes` | `/audit`, `/:entity/:id/history` | Audit listing and entity history reads. |
 
 ## Runtime Architecture
@@ -100,6 +103,8 @@ events.
 - Route-level validation returns stable machine-readable `detail` strings.
 - Authentication is required for every route except `/health` when health
   bypass is enabled.
+- System jobs run in a separate worker process and use Postgres for queue and
+  cursor state.
 
 ## Maintainer Documentation Map
 
@@ -107,6 +112,7 @@ Read these pages first:
 
 - [Getting Started](./getting-started): local setup, scripts, and environment.
 - [Data Model](./data-model): tables, fields, relationships, and constraints.
+- [System Jobs](./system-jobs): worker lifecycle and ZITADEL user sync repair.
 
 Then use the public [CAA Registry API reference](../../api/caa-registry/overview)
 when you need endpoint-level consumer behavior.

@@ -1,0 +1,144 @@
+---
+sidebar_position: 9
+title: ZITADEL Integrations
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# ZITADEL Integrations
+
+ZITADEL integration endpoints receive signed ZITADEL Actions V2 target calls.
+They are public at the bearer-token layer, but every request must pass the
+ZITADEL target signature check.
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/integrations/zitadel/users` | Handle ZITADEL user lifecycle events. |
+| `POST` | `/integrations/zitadel/users/deleted` | Dedicated delete-only endpoint if a separate target is preferred. |
+
+## Signature
+
+Both endpoints require either:
+
+```text
+ZITADEL-Signature: t=<unix>,v1=<hex>
+```
+
+or:
+
+```text
+X-ZITADEL-Signature: t=<unix>,v1=<hex>
+```
+
+The API verifies the HMAC signature using `ZITADEL_ACTION_SIGNING_KEY`.
+
+## `POST /integrations/zitadel/users`
+
+<Endpoint
+  method="POST"
+  path="/integrations/zitadel/users"
+  title="Receive ZITADEL user event"
+  auth="ZITADEL target signature"
+  success="200 OK or 201 Created"
+  summary="Creates, updates, or soft-deletes a registry user from a ZITADEL event."
+/>
+
+Use this as the preferred ZITADEL Actions V2 target endpoint:
+
+```text
+https://caa-registry.secure-utm.org/integrations/zitadel/users
+```
+
+Supported event types:
+
+| ZITADEL event | CAA behavior |
+| --- | --- |
+| `user.human.added` | Create or update registry user by provider identity, `zitadel_user_id`, or email. |
+| `user.removed` | Soft-mark the registry user and its `zitadel` identity link as deleted. |
+
+### Create/Update Event
+
+```json
+{
+  "aggregateID": "298183789123456789",
+  "event_type": "user.human.added",
+  "event_payload": {
+    "email": "amina@example.test",
+    "displayName": "Amina Hassan",
+    "phoneNumber": "+971500000002"
+  }
+}
+```
+
+Success creates or updates the row and writes an audit action:
+
+| Result | Audit action |
+| --- | --- |
+| Created | `zitadel_sync_create` |
+| Updated | `zitadel_sync_update` |
+
+The integration also upserts a provider-neutral identity link:
+
+```json
+{
+  "provider": "zitadel",
+  "provider_user_id": "298183789123456789",
+  "status": "active"
+}
+```
+
+The `user.zitadel_user_id` column is maintained as a compatibility mirror while
+new provider integrations should use `user_identity`.
+
+### Delete Event
+
+```json
+{
+  "aggregateID": "298183789123456789",
+  "event_type": "user.removed",
+  "created_at": "2026-06-03T12:00:00Z"
+}
+```
+
+Delete events do not hard-delete CAA Registry users. The API updates:
+
+```json
+{
+  "zitadel_status": "deleted",
+  "zitadel_deleted_at": "2026-06-03T12:00:00.000Z"
+}
+```
+
+and writes audit action `zitadel_sync_delete`.
+The matching `user_identity` row is also marked `deleted`.
+
+If the ZITADEL user was never synced into CAA Registry, the endpoint returns
+success with `action: "missing"`. This keeps delete events idempotent.
+
+## `POST /integrations/zitadel/users/deleted`
+
+<Endpoint
+  method="POST"
+  path="/integrations/zitadel/users/deleted"
+  title="Receive ZITADEL user delete event"
+  auth="ZITADEL target signature"
+  success="200 OK"
+  summary="Delete-only target endpoint for user.removed events."
+/>
+
+This endpoint exists if operators prefer a separate ZITADEL target for delete
+events. In most deployments, reuse `/integrations/zitadel/users` for both
+`user.human.added` and `user.removed`.
+
+## Operational Notes
+
+- Target type should be REST webhook with JSON payload.
+- `Interrupt on Error` can block ZITADEL user operations if enabled, so test
+  carefully before using it.
+- Watch logs with:
+
+```bash
+sudo journalctl -u caa-registry.service -f -o cat | grep --line-buffered zitadel_user
+```
