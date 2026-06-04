@@ -100,6 +100,7 @@ all three national ID fields must be present.
 | `GET` | `/users` | List and search registry users. |
 | `GET` | `/users/:userId` | Fetch one registry user. |
 | `POST` | `/users` | Create a registry user. |
+| `PATCH` | `/users/:userId/national-id` | Set or clear a user's national ID. |
 | `PUT` | `/users/:userId` | Replace a registry user. |
 | `DELETE` | `/users/:userId` | Delete a registry user. |
 | `GET` | `/users/:userId/history` | Read user audit history. |
@@ -112,7 +113,7 @@ all three national ID fields must be present.
   title="List registry users"
   permission="users.read"
   success="200 OK"
-  summary="Returns paginated users, optionally filtered by organization, user type, and search text."
+  summary="Returns paginated users, optionally filtered by organization, user type, search text, email, ZITADEL state, or national ID."
 />
 
 ```bash
@@ -129,10 +130,35 @@ curl -H "Authorization: Bearer $TOKEN" \
 | `org_id` | None | N/A | Filters by organization ID. |
 | `user_type_id` | None | N/A | Filters by user type. Must be a valid smallint. |
 | `q` | None | N/A | Case-insensitive match against `full_name` or `email`. |
+| `email` | None | N/A | Exact email match. Lowercased before filtering. |
+| `zitadel_user_id` | None | N/A | Exact ZITADEL user ID match. |
+| `zitadel_status` | None | N/A | Exact identity lifecycle status: `active` or `deleted`. |
+| `national_id_number` | None | N/A | Exact national ID number. Requires country code and type. |
+| `national_id_country_code` | None | N/A | Exact issuing country code. Uppercased before filtering. |
+| `national_id_type` | None | N/A | Exact identifier type. Lowercased before filtering. |
 
 ### Response
 
 Rows are ordered by `created_at desc`, then `user_id desc`.
+
+### Collision Lookup
+
+Use exact filters to find records that would block a write. For example, if a
+new active user cannot receive a national ID because a deleted user still holds
+it:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/users?national_id_country_code=AE&national_id_type=emirates_id&national_id_number=784-1990-1234567-1&zitadel_status=deleted"
+```
+
+If a new ZITADEL user should revive an old row by email, verify the existing
+row with:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/users?email=amina@example.test"
+```
 
 ## `GET /users/:userId`
 
@@ -213,6 +239,83 @@ The service validates references before insert:
 | `org_id` | `organization_not_found` |
 | `user_type_id` | `user_type_not_found` |
 | National ID partial input | `national_id_incomplete` |
+
+Duplicate identity values return conflicts:
+
+| Conflict | Detail |
+| --- | --- |
+| Duplicate email | `email_conflict` |
+| Duplicate national ID triple | `national_id_conflict` |
+| Duplicate ZITADEL ID mirror | `zitadel_user_id_conflict` |
+
+Use `GET /users` exact filters to find the conflicting row.
+
+## `PATCH /users/:userId/national-id`
+
+<Endpoint
+  method="PATCH"
+  path="/users/:userId/national-id"
+  title="Set or clear national ID"
+  permission="users.write"
+  success="200 OK"
+  summary="Updates only the national ID fields for a registry user."
+/>
+
+This endpoint exists for maintenance workflows where a stale or deleted user row
+holds a national ID that blocks the correct active record.
+
+Set a national ID:
+
+```bash
+curl -X PATCH "$CAA_REGISTRY_API_BASE_URL/users/afdf33ff-3db4-4972-b89a-2ea1f9e0a708/national-id" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "national_id_number": "784-1990-1234567-1",
+    "national_id_country_code": "AE",
+    "national_id_type": "emirates_id"
+  }'
+```
+
+Clear a national ID:
+
+```bash
+curl -X PATCH "$CAA_REGISTRY_API_BASE_URL/users/afdf33ff-3db4-4972-b89a-2ea1f9e0a708/national-id" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "national_id_number": null,
+    "national_id_country_code": null,
+    "national_id_type": null
+  }'
+```
+
+At least one national ID field must be present. If setting an ID, all three
+fields are required. The route writes audit action `update_national_id`.
+
+### Collision Resolution Workflow
+
+1. Find the row holding the conflicting national ID:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CAA_REGISTRY_API_BASE_URL/users?national_id_country_code=AE&national_id_type=emirates_id&national_id_number=784-1990-1234567-1"
+```
+
+2. If the returned row is stale or incorrect, clear only its national ID:
+
+```bash
+curl -X PATCH "$CAA_REGISTRY_API_BASE_URL/users/$CONFLICTING_USER_ID/national-id" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "national_id_number": null,
+    "national_id_country_code": null,
+    "national_id_type": null
+  }'
+```
+
+3. Retry the update on the correct user.
 
 ## `PUT /users/:userId`
 
@@ -303,3 +406,8 @@ supplied `user_id`, ordered newest first.
 | `user_create_failed` | Insert returned no row. |
 | `user_update_failed` | Update returned no row. |
 | `user_delete_failed` | Delete returned no row. |
+| `national_id_payload_required` | National ID patch body did not include any national ID fields. |
+| `national_id_filter_incomplete` | A national ID filter was partial. |
+| `email_conflict` | Another user already has this email. |
+| `national_id_conflict` | Another user already has this national ID triple. |
+| `zitadel_user_id_conflict` | Another user already has this ZITADEL user ID mirror. |
