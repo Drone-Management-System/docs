@@ -1,0 +1,146 @@
+---
+sidebar_position: 1
+title: Airspace Constraints
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Airspace Constraints
+
+Airspace constraint routes manage the named constraints that appear in the
+combined `/constraints` snapshot. Each constraint is linked to one 4D volume at
+creation time.
+
+## Resource Families
+
+| Resource | Base path | Write body fields | Notes |
+| --- | --- | --- | --- |
+| Areas | `/areas` | `name`, `description`, plus volume reference | Managed area records. |
+| Monitoring zones | `/monitoring-zones` | `name`, plus volume reference | Advisory monitoring zones. |
+| No-fly zones | `/no-fly-zones` | `name`, plus volume reference | Blocking constraints for operational intent validation. |
+| Identification zones | `/identification-zones` | `name`, plus volume reference | Identification requirement zones. |
+| Flight corridors | `/flight-corridors` | `name`, `bidirectional`, `gate_area_id`, `exit_area_id`, `space_buffer_m`, plus volume reference | Corridor between two areas. |
+
+Each family supports:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/<resource>` | List resources with `limit` and `offset`. |
+| `GET` | `/<resource>/:ID` | Fetch one resource by UUID. |
+| `POST` | `/<resource>` | Create a resource and its required 4D volume link. |
+| `PUT` | `/<resource>/:ID` | Replace writable fields and optionally replace the 4D volume link. |
+| `DELETE` | `/<resource>/:ID` | Delete the resource and owned volume links. |
+
+## Volume Reference
+
+Create requests require exactly one of:
+
+```json
+{
+  "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
+}
+```
+
+or:
+
+```json
+{
+  "volume_4d": {
+    "name": "Temporary window",
+    "valid_from": "2026-06-30T08:00:00.000Z",
+    "valid_to": "2026-06-30T10:00:00.000Z",
+    "status_code": "ACTIVE",
+    "volume_3d_id": "ae530633-4170-4e6f-9138-a2483d39bf56"
+  }
+}
+```
+
+Nested `volume_4d` can use `volume_3d_id` or include a nested `volume_3d`
+object.
+
+## `GET /areas`
+
+<Endpoint
+  method="GET"
+  path="/areas"
+  title="List areas"
+  success="200 OK"
+  summary="Returns paginated area records enriched with linked 4D volume data."
+/>
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "$CONSTRAINT_MANAGEMENT_API_BASE_URL/areas?limit=50&offset=0"
+```
+
+The same list behavior applies to `/monitoring-zones`, `/no-fly-zones`,
+`/identification-zones`, and `/flight-corridors`.
+
+## `POST /areas`
+
+<Endpoint
+  method="POST"
+  path="/areas"
+  title="Create area"
+  success="201 Created"
+  summary="Creates an area and links it to a required 4D volume."
+/>
+
+```bash
+curl -X POST "$CONSTRAINT_MANAGEMENT_API_BASE_URL/areas" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Downtown managed area",
+    "description": "Temporary low-altitude management area",
+    "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
+  }'
+```
+
+## `PUT /areas/:ID`
+
+<Endpoint
+  method="PUT"
+  path="/areas/:ID"
+  title="Replace area"
+  success="200 OK"
+  summary="Replaces area fields and optionally replaces the linked 4D volume."
+/>
+
+## `DELETE /areas/:ID`
+
+<Endpoint
+  method="DELETE"
+  path="/areas/:ID"
+  title="Delete area"
+  success="200 OK"
+  summary="Deletes the area, owned volume links, owned volumes, and dependent flight corridors."
+/>
+
+Deleting other constraint families removes the constraint and owned volume
+links. Deleting an area also removes flight corridors that use the area as
+their gate or exit area.
+
+## Flight Corridor Body
+
+```json
+{
+  "name": "North-south corridor",
+  "bidirectional": true,
+  "gate_area_id": "f90483b0-b466-4d68-86f0-e02a81390259",
+  "exit_area_id": "54f2da2c-a4a8-4e11-adf7-51d5d995ea8e",
+  "space_buffer_m": "30",
+  "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
+}
+```
+
+## Validation Details
+
+| Detail | Trigger |
+| --- | --- |
+| `id_required` | Route `:ID` is missing or blank. |
+| `volume_4d_required` | Create did not include a 4D volume reference. |
+| `volume_4d_reference_conflict` | Body included both `volume_4d_id` and `volume_4d`. |
+| `volume_3d_required` | Nested 4D volume did not include `volume_3d_id` or nested `volume_3d`. |
+| `<entity>_not_found` | Requested resource does not exist. |
+| `<entity>_has_invalid_reference` | A supplied UUID does not reference an existing row. |

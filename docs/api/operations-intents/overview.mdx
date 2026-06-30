@@ -1,0 +1,68 @@
+---
+sidebar_position: 1
+title: API Overview
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Operations Intents API
+
+Operations Intents owns operational intent records, mission volumes, CONOPS,
+risk assessment resources, validation, intent-volume links, filtering, and
+audit logs.
+
+The implementation lives in the sibling project at `../operations-intents`.
+Routes are registered at the service root; deployment gateways may add their
+own prefix.
+
+## Base URL
+
+When this API is wired into the docs config, use:
+
+```env
+DOCS_OPERATIONS_INTENTS_API_BASE_URL=https://operations-intents-api.example.com
+```
+
+Shell examples use:
+
+```bash
+export OPERATIONS_INTENTS_API_BASE_URL="https://operations-intents-api.example.com"
+```
+
+## Endpoint Families
+
+| Family | Routes | Purpose |
+| --- | --- | --- |
+| Health | `GET /health` | Check service readiness. |
+| [Operational intents](./endpoints/operational-intents) | `/operational-intents`, `/operational-intents/filter`, `/intent-volumes-4d` | Manage operation records, linked volumes, and filters. |
+| [Supporting resources](./endpoints/supporting-resources) | `/volumes-3d`, `/volumes-4d`, `/conops`, `/risk-assessments`, `/risk-hazards`, `/risk-mitigations` | Manage geometry, time windows, CONOPS, and risk data. |
+| [Validation and audit](./endpoints/validation-and-audit) | `/operational-intents/:id/validate`, `/audit-log` | Validate intents and read audit events. |
+
+## `GET /health`
+
+<Endpoint
+  method="GET"
+  path="/health"
+  title="Check service health"
+  auth="Public when health auth bypass is enabled; otherwise bearer token when auth is registered"
+  success="200 OK"
+  summary="Returns the basic service health marker."
+/>
+
+```bash
+curl "$OPERATIONS_INTENTS_API_BASE_URL/health"
+```
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## Recommended Reading Order
+
+1. [Auth and Permissions](./auth-and-permissions)
+2. [API Conventions](./api-conventions)
+3. [Operational Intents](./endpoints/operational-intents)
+4. [Supporting Resources](./endpoints/supporting-resources)
+5. [Validation and Audit](./endpoints/validation-and-audit)

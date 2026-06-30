@@ -1,0 +1,67 @@
+---
+sidebar_position: 1
+title: API Overview
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Constraint Management API
+
+Constraint Management owns managed airspace constraints, 3D and 4D volumes,
+constraint rule metadata, a combined constraint snapshot, and audit logs.
+
+The implementation lives in the sibling project at `../constraint-management`.
+Routes are registered at the service root; deployment gateways may add their
+own prefix.
+
+## Base URL
+
+When this API is wired into the docs config, use:
+
+```env
+DOCS_CONSTRAINT_MANAGEMENT_API_BASE_URL=https://constraint-management-api.example.com
+```
+
+Shell examples use:
+
+```bash
+export CONSTRAINT_MANAGEMENT_API_BASE_URL="https://constraint-management-api.example.com"
+```
+
+## Endpoint Families
+
+| Family | Routes | Purpose |
+| --- | --- | --- |
+| Health | `GET /health` | Check service readiness. |
+| [Airspace constraints](./endpoints/airspace-constraints) | `/areas`, `/monitoring-zones`, `/no-fly-zones`, `/identification-zones`, `/flight-corridors` | Manage named constraints and their 4D volume links. |
+| [Volumes and rules](./endpoints/volumes-and-rules) | `/volumes-3d`, `/volumes-4d`, `/rules`, `/rule-types`, `/operator-properties`, `/volume-4d-properties` | Manage geometry, time windows, properties, and rule metadata. |
+| [Cache and audit](./endpoints/cache-and-audit) | `/constraints`, `/constraints/refresh`, `/audit-logs` | Publish the combined constraint snapshot and read audit events. |
+
+## `GET /health`
+
+<Endpoint
+  method="GET"
+  path="/health"
+  title="Check service health"
+  auth="Public when health auth bypass is enabled; otherwise bearer token when auth is registered"
+  success="200 OK"
+  summary="Returns the basic service health marker."
+/>
+
+```bash
+curl "$CONSTRAINT_MANAGEMENT_API_BASE_URL/health"
+```
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## Recommended Reading Order
+
+1. [Auth and Permissions](./auth-and-permissions)
+2. [API Conventions](./api-conventions)
+3. [Airspace Constraints](./endpoints/airspace-constraints)
+4. [Volumes and Rules](./endpoints/volumes-and-rules)
+5. [Cache and Audit](./endpoints/cache-and-audit)

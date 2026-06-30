@@ -1,0 +1,87 @@
+---
+sidebar_position: 3
+title: API Conventions
+---
+
+# API Conventions
+
+This page documents conventions shared across Constraint Management endpoints.
+
+## Content Type
+
+Write endpoints expect JSON request bodies:
+
+```http
+Content-Type: application/json
+Accept: application/json
+```
+
+## Pagination
+
+Most list endpoints use offset pagination:
+
+| Query parameter | Default | Minimum | Maximum |
+| --- | --- | --- | --- |
+| `limit` | `50` | `1` | `200` |
+| `offset` | `0` | `0` | `100000` |
+
+The response shape is:
+
+```json
+{
+  "items": [],
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+}
+```
+
+The service queries `limit + 1` rows and returns only the first `limit` rows.
+
+## Write Semantics
+
+| Method | Behavior |
+| --- | --- |
+| `POST` | Creates a row and returns HTTP `201` with the created row. |
+| `PUT` | Replaces writable fields for an existing row and returns the updated row. |
+| `DELETE` | Deletes the row and returns the deleted row when the route can return one. |
+
+`PUT` is not a partial patch.
+
+## Spatial and Time Fields
+
+3D volume footprints accept GeoJSON `Polygon` or `MultiPolygon` geometry with a
+`coordinates` array. The service stores them as PostGIS
+`geometry(MultiPolygon,4326)` and returns GeoJSON.
+
+4D volumes require `valid_to` to be later than `valid_from`.
+
+## Airspace Constraint Volume Linking
+
+Constraint routes such as `/areas`, `/no-fly-zones`, and `/flight-corridors`
+use custom route logic:
+
+| Method | Volume rule |
+| --- | --- |
+| `POST` | Requires exactly one of `volume_4d_id` or nested `volume_4d`. |
+| `PUT` | May omit the volume reference, or provide one of `volume_4d_id` or nested `volume_4d` to replace the link. |
+| `DELETE` | Deletes the constraint and owned volume links. Deleting an area also deletes dependent flight corridors. |
+
+## Error Envelope
+
+Application errors use:
+
+```json
+{
+  "detail": "machine_readable_detail"
+}
+```
+
+| Status | Typical cause |
+| --- | --- |
+| `400` | Missing required field, invalid query, invalid UUID, invalid geometry, invalid date, or invalid numeric value. |
+| `401` | Missing or invalid authentication when auth is enabled. |
+| `403` | Valid token but missing permission when a route asserts permissions. |
+| `404` | Requested record not found. |
+| `409` | Unique or foreign-key conflict. |
+| `500` | Unhandled server error. |

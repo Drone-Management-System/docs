@@ -1,0 +1,66 @@
+---
+sidebar_position: 2
+title: Auth and Permissions
+---
+
+# Auth and Permissions
+
+Operations Intents includes ZITADEL-compatible bearer-token verification
+helpers, group-to-permission mapping, and standard auth error responses.
+
+## Current Registration State
+
+In `../operations-intents/src/app.ts`, the auth plugin import exists but the
+registration is currently commented out:
+
+```ts
+// await app.register(registerAuthPlugin);
+```
+
+That means current route registration does not enforce authentication or
+per-route authorization in the Fastify request lifecycle. Mutable routes still
+write audit events using `request.auth` when an auth context is present.
+
+When the auth plugin is enabled, send:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+## Token Validation
+
+| Config key | Purpose | Default |
+| --- | --- | --- |
+| `ZITADEL_ISSUER_URL` | Expected issuer. | `http://localhost` |
+| `ZITADEL_JWKS_URL` | JWKS endpoint used by `jose`. | `http://localhost/.well-known/jwks.json` |
+| `ZITADEL_AUDIENCE` | Expected audience. | `local` |
+| `ZITADEL_GROUPS_CLAIM` | Claim used to resolve group names. | `groups` |
+| `ZITADEL_USERNAME_CLAIM` | Username claim copied into audit actor context. | `preferred_username` |
+| `ZITADEL_EMAIL_CLAIM` | Email claim copied into audit actor context. | `email` |
+| `ZITADEL_BYPASS_AUTH_FOR_HEALTH` | Allows public `GET /health` when enabled. | `true` when unset |
+
+## Permission Model
+
+The service currently carries the shared backend permission helper, but route
+handlers do not currently call `assertPermission`. Treat the permission map as
+available plumbing rather than an enforced endpoint contract.
+
+## Auth Error Envelope
+
+When auth is enabled, auth failures use:
+
+```json
+{
+  "detail": "authentication_required"
+}
+```
+
+Common auth details are:
+
+| Detail | Meaning |
+| --- | --- |
+| `authentication_required` | Missing bearer token or missing auth context. |
+| `invalid_authorization_header` | Header did not match `Bearer <token>`. |
+| `invalid_token` | JWT verification failed. |
+| `token_subject_missing` | Verified token did not include a usable subject. |
+| `permission_denied` | A route called `assertPermission` and rejected the request. |

@@ -48,6 +48,46 @@ const sidebars: SidebarsConfig = {
             },
           ],
         },
+        {
+          type: 'category',
+          label: 'Constraint Management',
+          collapsed: false,
+          items: [
+            'api/constraint-management/overview',
+            'api/constraint-management/auth-and-permissions',
+            'api/constraint-management/api-conventions',
+            {
+              type: 'category',
+              label: 'Endpoints',
+              collapsed: false,
+              items: [
+                'api/constraint-management/endpoints/airspace-constraints',
+                'api/constraint-management/endpoints/volumes-and-rules',
+                'api/constraint-management/endpoints/cache-and-audit',
+              ],
+            },
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Operations Intents',
+          collapsed: false,
+          items: [
+            'api/operations-intents/overview',
+            'api/operations-intents/auth-and-permissions',
+            'api/operations-intents/api-conventions',
+            {
+              type: 'category',
+              label: 'Endpoints',
+              collapsed: false,
+              items: [
+                'api/operations-intents/endpoints/operational-intents',
+                'api/operations-intents/endpoints/supporting-resources',
+                'api/operations-intents/endpoints/validation-and-audit',
+              ],
+            },
+          ],
+        },
       ],
     },
     {

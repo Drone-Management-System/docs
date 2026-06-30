@@ -1,0 +1,90 @@
+---
+sidebar_position: 1
+title: Operational Intents
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Operational Intents
+
+Operational intent records link a CONOPS record and a risk assessment. Their
+operation geometry and time windows are modeled through linked 4D volumes.
+
+## Write Body
+
+```json
+{
+  "conops_id": "1e61c0b6-7b24-4234-8f06-1ad6ad455878",
+  "risk_assessment_id": "db319c3f-e51f-4f52-a4c9-df1865ce86f0"
+}
+```
+
+## Endpoint Catalog
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/operational-intents` | List operational intents. |
+| `GET` | `/operational-intents/:ID` | Fetch one operational intent. |
+| `POST` | `/operational-intents` | Create an operational intent. |
+| `PUT` | `/operational-intents/:ID` | Replace an operational intent. |
+| `DELETE` | `/operational-intents/:ID` | Delete an operational intent. |
+| `GET` | `/operational-intents/filter` | List operational intents matching linked-volume filters. |
+| `POST` | `/operational-intents/:id/validate` | Validate one operational intent. |
+
+## `POST /operational-intents`
+
+<Endpoint
+  method="POST"
+  path="/operational-intents"
+  title="Create operational intent"
+  success="201 Created"
+  summary="Creates an operational intent linked to CONOPS and risk assessment records."
+/>
+
+```bash
+curl -X POST "$OPERATIONS_INTENTS_API_BASE_URL/operational-intents" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conops_id": "1e61c0b6-7b24-4234-8f06-1ad6ad455878",
+    "risk_assessment_id": "db319c3f-e51f-4f52-a4c9-df1865ce86f0"
+  }'
+```
+
+## `GET /operational-intents/filter`
+
+<Endpoint
+  method="GET"
+  path="/operational-intents/filter"
+  title="Filter operational intents"
+  success="200 OK"
+  summary="Filters operational intents by linked 4D volume state, time, and position."
+/>
+
+### Query Parameters
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `limit` | `50` | Number of rows to return, max `200`. |
+| `offset` | `0` | Number of rows to skip, max `100000`. |
+| `active` | None | Filters linked volumes by active or non-active status. |
+| `current_time` or `current` | None | Filters linked volumes against current server time. |
+| `start_time` or `start` | None | Start of a linked-volume overlap window. |
+| `end_time` or `end` | None | End of a linked-volume overlap window. |
+| `latitude` or `lat` | None | Position latitude. |
+| `longitude`, `lng`, or `lon` | None | Position longitude. |
+| `buffer_m` | `0` | Position buffer in meters. |
+
+## Intent Volume Links
+
+`/intent-volumes-4d` links operational intents to 4D volumes. The resource uses
+a composite key of `intent_id` and `volume_4d_id`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/intent-volumes-4d` | List links, optionally filtered by `intent_id` or `volume_4d_id`. |
+| `GET` | `/intent-volumes-4d/:intentID/:volume4DID` | Fetch one link. |
+| `POST` | `/intent-volumes-4d` | Create a link. |
+| `DELETE` | `/intent-volumes-4d/:intentID/:volume4DID` | Delete a link. |
+
+Duplicate links return `intent_volume_4d_already_exists`.

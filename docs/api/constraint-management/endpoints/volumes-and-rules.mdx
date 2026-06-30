@@ -1,0 +1,90 @@
+---
+sidebar_position: 2
+title: Volumes and Rules
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Volumes and Rules
+
+These routes manage the lower-level 3D/4D volume records and rule metadata used
+by airspace constraints.
+
+## Volume Routes
+
+| Resource | Base path | Purpose |
+| --- | --- | --- |
+| 3D volumes | `/volumes-3d` | Store spatial footprint and altitude band. |
+| 4D volumes | `/volumes-4d` | Link a 3D volume to a validity window and status. |
+
+Both routes support standard list, fetch, create, replace, and delete
+operations.
+
+## `POST /volumes-3d`
+
+<Endpoint
+  method="POST"
+  path="/volumes-3d"
+  title="Create 3D volume"
+  success="201 Created"
+  summary="Creates a spatial volume from GeoJSON footprint and altitude bounds."
+/>
+
+```json
+{
+  "name": "Downtown footprint",
+  "footprint": {
+    "type": "Polygon",
+    "coordinates": [[[55.25, 25.20], [55.26, 25.20], [55.26, 25.21], [55.25, 25.21], [55.25, 25.20]]]
+  },
+  "altitude_lower_m": "0",
+  "altitude_upper_m": "120",
+  "altitude_check": true,
+  "altitude_reference_code": "WGS84"
+}
+```
+
+## `POST /volumes-4d`
+
+<Endpoint
+  method="POST"
+  path="/volumes-4d"
+  title="Create 4D volume"
+  success="201 Created"
+  summary="Creates a time-bounded volume linked to one 3D volume."
+/>
+
+```json
+{
+  "name": "Downtown active window",
+  "volume_3d_id": "ae530633-4170-4e6f-9138-a2483d39bf56",
+  "valid_from": "2026-06-30T08:00:00.000Z",
+  "valid_to": "2026-06-30T10:00:00.000Z",
+  "status_code": "ACTIVE"
+}
+```
+
+## Rule Metadata Routes
+
+| Resource | Base path | Write body |
+| --- | --- | --- |
+| Operator properties | `/operator-properties`, `/operators_properties` | `name`, optional `value` |
+| 4D volume properties | `/volume-4d-properties` | `name`, optional `value` |
+| Rule types | `/rule-types` | `name` |
+| Rules | `/rules` | `operators_properties_id`, `volume_4d_properties_id`, `rule_type_id` |
+| 4D property links | `/volume-4d-property-links` | `volume_4d_id`, `volume_4d_properties_id` |
+| Constraint volume links | `/airspace-constraint-volume-links` | `airspace_constraint_id`, `volume_4d_id` |
+
+Each metadata route uses the standard CRUD pattern.
+
+## Delete Behavior
+
+Some delete routes perform dependency cleanup:
+
+| Route | Cleanup |
+| --- | --- |
+| `/volumes-3d/:ID` | Deletes dependent 4D volumes and relationship rows managed by the service. |
+| `/volumes-4d/:ID` | Deletes dependent link rows and owned 3D volume when appropriate. |
+| `/rule-types/:ID` | Deletes rule type dependencies. |
+| `/volume-4d-properties/:ID` | Deletes property dependencies. |
+| `/operator-properties/:ID` | Deletes operator property dependencies. |
