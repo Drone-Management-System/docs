@@ -1,0 +1,74 @@
+---
+sidebar_position: 1
+title: API Overview
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# RID Auth Server API
+
+The RID Auth Server is the Secure Remote ID service used to provision drone
+credentials and verify Remote ID authentication data over HTTP or WebSocket.
+
+The implementation lives in the sibling project at `../rid-auth-server`. It is
+a Java 17 Javalin service backed by PostgreSQL. Nginx is expected to terminate
+TLS and proxy traffic to the Javalin HTTP port.
+
+## Base URL
+
+The deployment notes use:
+
+```bash
+export RID_AUTH_SERVER_API_BASE_URL="https://rid.secure-utm.org"
+```
+
+Local Javalin defaults to:
+
+```bash
+export RID_AUTH_SERVER_API_BASE_URL="http://localhost:7070"
+```
+
+## Endpoint Families
+
+| Family | Routes | Purpose |
+| --- | --- | --- |
+| Health | `GET /healthz` | Check service readiness. |
+| [Drone provisioning](./endpoints/provisioning) | `POST /provision/drone` | Register a drone and generate its credential material. |
+| [Remote ID verification](./endpoints/verification) | `POST /remoteid/verify`, `WS /remoteid/verify` | Verify drone authentication data for observers. |
+
+## `GET /healthz`
+
+<Endpoint
+  method="GET"
+  path="/healthz"
+  title="Check service health"
+  auth="Public"
+  success="200 OK"
+  summary="Returns a plain OK response from the Javalin server."
+/>
+
+```bash
+curl "$RID_AUTH_SERVER_API_BASE_URL/healthz"
+```
+
+```text
+OK
+```
+
+## Runtime Configuration
+
+| Environment variable | Purpose | Default or deployment value |
+| --- | --- | --- |
+| `HTTP_PORT` | Javalin HTTP port. | `7070` |
+| `DB_URL` | PostgreSQL JDBC URL. | `jdbc:postgresql://localhost:5433/khadem_db` |
+| `DB_USER` | PostgreSQL user. | `khadem_user` |
+| `DB_PASSWORD` | PostgreSQL password. | Deployment secret |
+| `JWT_PUBKEY_PATH` | RSA public key used to verify observer JWTs. | `JWT_key/oauth2_rsa.pub.pem` |
+| `TLS_CERT_PATH` | TLS certificate path for deployment notes. | Nginx handles TLS |
+| `TLS_KEY_PATH` | TLS key path for deployment notes. | Nginx handles TLS |
+
+## Recommended Reading Order
+
+1. [API Conventions](./api-conventions)
+2. [Drone Provisioning](./endpoints/provisioning)
+3. [Remote ID Verification](./endpoints/verification)

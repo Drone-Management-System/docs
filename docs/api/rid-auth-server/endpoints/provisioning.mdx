@@ -1,0 +1,85 @@
+---
+sidebar_position: 1
+title: Drone Provisioning
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Drone Provisioning
+
+Provisioning registers a drone and generates the credential material used later
+by Remote ID verification.
+
+## `POST /provision/drone`
+
+<Endpoint
+  method="POST"
+  path="/provision/drone"
+  title="Register drone"
+  auth="None"
+  success="201 Created"
+  summary="Registers a drone UUID and stores generated keys and certificates."
+/>
+
+```bash
+curl -X POST "$RID_AUTH_SERVER_API_BASE_URL/provision/drone" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Drone Registration": {
+      "Drone UUID": "DRONE001",
+      "Owner": "Falcon UAV",
+      "Model": "Quadcopter-X",
+      "Firmware Version": "2.0.0"
+    }
+  }'
+```
+
+## Request Body
+
+```json
+{
+  "Drone Registration": {
+    "Drone UUID": "DRONE001",
+    "Owner": "Falcon UAV",
+    "Model": "Quadcopter-X",
+    "Firmware Version": "2.0.0"
+  }
+}
+```
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `Drone Registration` | Yes | Top-level object containing drone metadata. |
+| `Drone UUID` | Yes | Unique drone identifier. |
+| `Owner` | No | Defaults to `Unknown` in the registrar. |
+| `Model` | No | Defaults to `Unknown` in the registrar. |
+| `Firmware Version` | No | Defaults to `N/A` in the registrar. |
+
+## Success Response
+
+```json
+{
+  "status_code": 2000,
+  "status_text": "success",
+  "action": "Drone Registered",
+  "message": "Drone registration completed successfully.",
+  "data": {
+    "DroneUUID": "DRONE001"
+  }
+}
+```
+
+## Error Responses
+
+| HTTP status | `status_code` | Trigger |
+| --- | --- | --- |
+| `400` | `4001` | Missing `Drone Registration`. |
+| `400` | `4003` | Malformed JSON. |
+| `409` | `4091` | Drone UUID already registered or validation failed. |
+| `500` | `5000` | Server-side processing error. |
+
+## Stored Data
+
+Successful registration stores the drone UUID, owner, model, firmware version,
+public key, certificate PEM, private key PEM, and registration timestamp in
+`drone_certificates`.

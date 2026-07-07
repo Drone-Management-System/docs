@@ -88,6 +88,24 @@ const sidebars: SidebarsConfig = {
             },
           ],
         },
+        {
+          type: 'category',
+          label: 'RID Auth Server',
+          collapsed: false,
+          items: [
+            'api/rid-auth-server/overview',
+            'api/rid-auth-server/api-conventions',
+            {
+              type: 'category',
+              label: 'Endpoints',
+              collapsed: false,
+              items: [
+                'api/rid-auth-server/endpoints/provisioning',
+                'api/rid-auth-server/endpoints/verification',
+              ],
+            },
+          ],
+        },
       ],
     },
     {

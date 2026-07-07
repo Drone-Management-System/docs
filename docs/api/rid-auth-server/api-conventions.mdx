@@ -1,0 +1,89 @@
+---
+sidebar_position: 2
+title: API Conventions
+---
+
+# API Conventions
+
+This page documents conventions shared by RID Auth Server endpoints.
+
+## Content Type
+
+HTTP write endpoints expect JSON request bodies:
+
+```http
+Content-Type: application/json
+Accept: application/json
+```
+
+## Response Shape
+
+Most API responses use structured JSON:
+
+```json
+{
+  "status_code": 2000,
+  "status_text": "success",
+  "action": "Drone Registered",
+  "message": "Drone registration completed successfully.",
+  "data": {}
+}
+```
+
+The current Java verification handler uses a smaller shape for some responses:
+
+```json
+{
+  "status_code": 200,
+  "status_text": "success",
+  "data": {}
+}
+```
+
+Clients should treat `status_code` and `status_text` as the stable fields and
+avoid depending on optional text fields.
+
+## Authentication
+
+Provisioning is open by payload submission:
+
+```text
+POST /provision/drone
+```
+
+HTTP verification requires an observer JWT in the `Authorization` header:
+
+```http
+Authorization: Bearer <jwt>
+```
+
+WebSocket verification authenticates on the first message. The current handler
+expects `Authorization` in that JSON message, with a `Bearer ` prefix, plus an
+`Observer` object.
+
+## Result Codes
+
+Drone signature verification returns these result codes inside `data`:
+
+| ResultCode | ResultText |
+| --- | --- |
+| `0` | `VALID` |
+| `1` | `INVALID` |
+| `2` | `VALID BUT EXPIRED` |
+| `3` | `UNKNOWN KEY` |
+| `4` | `REVOKED` |
+| `5` | `UNKNOWN ID` |
+
+The HTTP handler returns HTTP `200` when `ResultCode` is `0` or `2`; other
+verification results return HTTP `422`.
+
+## Error Handling
+
+| HTTP status | Typical cause |
+| --- | --- |
+| `400` | Malformed JSON or missing required JSON sections. |
+| `401` | Missing or invalid `Authorization` header. |
+| `403` | Observer JWT failed verification. |
+| `409` | Drone UUID already exists during provisioning. |
+| `422` | Drone signature verification failed or required drone fields were missing. |
+| `500` | Server-side processing error. |

@@ -1,0 +1,133 @@
+---
+sidebar_position: 2
+title: Remote ID Verification
+---
+
+import Endpoint from '@site/src/components/Endpoint';
+
+# Remote ID Verification
+
+Verification checks an observer JWT and validates drone Remote ID
+authentication data and signature against the provisioned drone public key.
+
+## `POST /remoteid/verify`
+
+<Endpoint
+  method="POST"
+  path="/remoteid/verify"
+  title="Verify drone over HTTP"
+  auth="Bearer observer JWT"
+  success="200 OK when signature is valid or valid but expired"
+  summary="Verifies one drone identity per HTTP request."
+/>
+
+```bash
+curl -X POST "$RID_AUTH_SERVER_API_BASE_URL/remoteid/verify" \
+  -H "Authorization: Bearer $OBSERVER_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Observer": {
+      "Observer ID": "observer-001"
+    },
+    "Drone": {
+      "Drone UUID": "DRONE001",
+      "Authentication Data": "base64string",
+      "Drone Signature": "base64string"
+    }
+  }'
+```
+
+## HTTP Request Body
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `Observer` | Yes | Contains observer metadata. |
+| `Observer ID` | No | Defaults to `Unknown` when omitted. |
+| `Drone` | Yes | Contains drone verification payload. |
+| `Drone UUID` | Yes | Drone identifier to look up in `drone_certificates`. |
+| `Authentication Data` | Yes | Base64-encoded Remote ID authentication data. |
+| `Drone Signature` | Yes | Base64-encoded signature over the authentication data. |
+
+The current HTTP handler reads the JWT from the `Authorization` header, not
+from the JSON body.
+
+## HTTP Success Response
+
+```json
+{
+  "status_code": 200,
+  "status_text": "success",
+  "data": {
+    "ObserverID": "observer-001",
+    "DroneUUID": "DRONE001",
+    "ResultCode": 0,
+    "ResultText": "VALID"
+  }
+}
+```
+
+`ResultCode` values `0` and `2` return HTTP `200`. Other result codes return
+HTTP `422` with `status_text: "error"`.
+
+## HTTP Error Responses
+
+| HTTP status | Trigger |
+| --- | --- |
+| `400` | Malformed JSON or missing `Observer` or `Drone`. |
+| `401` | Missing or invalid `Authorization: Bearer ...` header. |
+| `403` | Observer JWT failed verification. |
+| `422` | Drone verification completed with a non-accepted result. |
+
+## WebSocket `WS /remoteid/verify`
+
+The same route also supports WebSocket verification. Clients authenticate once,
+then send one or more drone verification messages.
+
+### Connection Flow
+
+| Step | Message |
+| --- | --- |
+| 1 | Server sends an informational JSON message with `status_code: 1000`. |
+| 2 | Client sends an authentication message. |
+| 3 | Server sends `status_code: 1001` on success or closes on failure. |
+| 4 | Client sends drone verification messages. |
+| 5 | Server sends one verification result per message. |
+
+### WebSocket Authentication Message
+
+```json
+{
+  "Authorization": "Bearer eyJ...",
+  "Observer": {
+    "Observer ID": "observer-001"
+  }
+}
+```
+
+Successful authentication returns:
+
+```json
+{
+  "status_code": 1001,
+  "status_text": "success",
+  "message": "Authenticated",
+  "data": {}
+}
+```
+
+### WebSocket Drone Verification Message
+
+```json
+{
+  "Drone": {
+    "Drone UUID": "DRONE001",
+    "Authentication Data": "base64string",
+    "Drone Signature": "base64string"
+  }
+}
+```
+
+Successful verification returns `status_code: 2001`. Failed verification returns
+`status_code: 4007`. Malformed JSON, failed authentication, or missing drone
+sections cause the server to send an error response and close the session with
+WebSocket close code `1008`.

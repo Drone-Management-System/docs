@@ -1,0 +1,9 @@
+{
+  "label": "RID Auth Server API",
+  "position": 4,
+  "link": {
+    "type": "doc",
+    "id": "api/rid-auth-server/overview"
+  },
+  "collapsed": false
+}
