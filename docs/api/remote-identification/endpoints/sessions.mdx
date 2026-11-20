@@ -1,0 +1,44 @@
+---
+sidebar_position: 2
+title: Sessions
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {sessions} from '@site/src/data/remote-identification';
+
+# Sessions
+
+A session is one flight: an aircraft broadcasting under one certificate,
+optionally for one operational intent. Position reports point to their session,
+so a session is also the unit for replaying a track.
+
+<EndpointTable endpoints={[sessions.list, sessions.filter, sessions.single, sessions.get, sessions.create, sessions.replace, sessions.remove]} />
+
+### List sessions \{#list-sessions\}
+
+<ApiEndpoint {...sessions.list} />
+
+### Filter sessions \{#filter-sessions\}
+
+<ApiEndpoint {...sessions.filter} />
+
+### Find one session with its track \{#filter-single-session\}
+
+<ApiEndpoint {...sessions.single} />
+
+### Get a session \{#get-session\}
+
+<ApiEndpoint {...sessions.get} />
+
+### Start a session \{#create-session\}
+
+<ApiEndpoint {...sessions.create} />
+
+### Replace a session \{#replace-session\}
+
+<ApiEndpoint {...sessions.replace} />
+
+### Delete a session \{#delete-session\}
+
+<ApiEndpoint {...sessions.remove} />

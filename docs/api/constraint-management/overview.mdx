@@ -3,65 +3,69 @@ sidebar_position: 1
 title: API Overview
 ---
 
-import Endpoint from '@site/src/components/Endpoint';
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import ApiEnvironment from '@site/src/components/ApiEnvironment';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {allEndpoints, health, pages} from '@site/src/data/constraint-management';
 
 # Constraint Management API
 
-Constraint Management owns managed airspace constraints, 3D and 4D volumes,
-constraint rule metadata, a combined constraint snapshot, and audit logs.
+Constraint Management owns the shape of the airspace: where drones may and may
+not fly, when, and under which rules. Operations Intents calls it to check
+planned operations against these constraints.
 
-The implementation lives in the sibling project at `../constraint-management`.
-Routes are registered at the service root; deployment gateways may add their
-own prefix.
+Constraints come in five types: **areas**, **monitoring zones**, **no-fly
+zones**, **identification zones**, and **flight corridors** (which run between
+two areas). Each is linked to one **4D volume**, a time window over a **3D
+volume** (a GeoJSON footprint with altitude bounds). Volumes can carry a
+**rule** and typed **properties**. Everything is published as one cached
+**snapshot**.
 
-## Base URL
-
-When this API is wired into the docs config, use:
-
-```env
-DOCS_CONSTRAINT_MANAGEMENT_API_BASE_URL=https://constraint-management-api.example.com
+```mermaid
+flowchart LR
+  C["Constraint<br/>area · zone · corridor"] -- one link --> V4["4D volume<br/>time window, status,<br/>accessibility"]
+  V4 -- built on --> V3["3D volume<br/>GeoJSON footprint,<br/>altitude band"]
+  V4 -. optional .-> R[Rule]
+  V4 -. 0..n .-> P[Properties]
+  FC[Flight corridor] -- gate / exit --> A[Areas]
 ```
 
-Shell examples use:
+The service is Fastify 5 with TypeScript, PostgreSQL with PostGIS through
+Drizzle ORM, and optional Redis. Tables live in the
+`constraint_management_api` schema.
 
-```bash
-export CONSTRAINT_MANAGEMENT_API_BASE_URL="https://constraint-management-api.example.com"
-```
+## Environment
 
-## Endpoint Families
+<ApiEnvironment api="constraint-management" endpoints={allEndpoints} />
 
-| Family | Routes | Purpose |
+The service sends `Access-Control-Allow-Origin: *`, so the **Try it** console
+works directly from the browser whenever the API is reachable.
+
+## Endpoint families
+
+| Family | Base routes | Purpose |
 | --- | --- | --- |
-| Health | `GET /health` | Check service readiness. |
-| [Airspace constraints](./endpoints/airspace-constraints) | `/areas`, `/monitoring-zones`, `/no-fly-zones`, `/identification-zones`, `/flight-corridors` | Manage named constraints and their 4D volume links. |
-| [Volumes and rules](./endpoints/volumes-and-rules) | `/volumes-3d`, `/volumes-4d`, `/rules`, `/rule-types`, `/operator-properties`, `/volume-4d-properties` | Manage geometry, time windows, properties, and rule metadata. |
-| [Cache and audit](./endpoints/cache-and-audit) | `/constraints`, `/constraints/refresh`, `/audit-logs` | Publish the combined constraint snapshot and read audit events. |
+| [Airspace constraints](./endpoints/airspace-constraints) | `/areas`, `/monitoring-zones`, `/no-fly-zones`, `/identification-zones`, `/flight-corridors` | Named constraints with their volume. |
+| [Volumes](./endpoints/volumes) | `/volumes-3d`, `/volumes-4d`, `/volume-4d-statuses`, `/airspace-constraint-volume-links` | Geometry, time windows, and links. |
+| [Volume properties](./endpoints/volume-properties) | `/volume-4d-property-names`, `/volume-4d-properties` | Typed custom fields on 4D volumes. |
+| [Rules](./endpoints/rules) | `/rules`, `/rules/bulk` | Rule definitions applied to volumes. |
+| [Snapshot and audit](./endpoints/snapshot-and-audit) | `/constraints`, `/audit-logs` | Cached snapshot and write history. |
 
-## `GET /health`
+Every resource also has a `GET <resource>/filter` endpoint for column filters.
 
-<Endpoint
-  method="GET"
-  path="/health"
-  title="Check service health"
-  auth="Public when health auth bypass is enabled; otherwise bearer token when auth is registered"
-  success="200 OK"
-  summary="Returns the basic service health marker."
-/>
+## Health
 
-```bash
-curl "$CONSTRAINT_MANAGEMENT_API_BASE_URL/health"
-```
+### Check service health \{#get-health\}
 
-```json
-{
-  "status": "ok"
-}
-```
+<ApiEndpoint {...health.get} />
 
-## Recommended Reading Order
+## All endpoints
+
+<EndpointTable endpoints={allEndpoints.filter((endpoint) => !endpoint.id.startsWith('filter-'))} pages={pages} />
+
+## Recommended reading order
 
 1. [Auth and Permissions](./auth-and-permissions)
 2. [API Conventions](./api-conventions)
 3. [Airspace Constraints](./endpoints/airspace-constraints)
-4. [Volumes and Rules](./endpoints/volumes-and-rules)
-5. [Cache and Audit](./endpoints/cache-and-audit)
+4. [Volumes](./endpoints/volumes)

@@ -1,0 +1,63 @@
+---
+sidebar_position: 2
+title: Review Workflow
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {review} from '@site/src/data/operations-intents';
+
+# Review Workflow
+
+The review workflow takes an intent from plan to decision. Every call returns
+the [review envelope](../api-conventions#two-error-formats) with a stable
+`code`, a user-facing `message` and `action`, and a `correlation_id`.
+
+## What validation checks
+
+| Check | Looks at | Example findings |
+| --- | --- | --- |
+| Intent | The intent and its references. | `OPERATIONAL_INTENT_NOT_FOUND` |
+| Volumes | At least one 4D volume; valid time and altitude ranges; footprint present. | `NO_4D_VOLUMES`, `VOLUME_4D_TIME_RANGE_INVALID`, `VOLUME_3D_ALTITUDE_RANGE_INVALID` |
+| CONOPS | Present and complete. | `CONOPS_REQUIRED`, `CONOPS_INCOMPLETE` |
+| Risk | Present, complete, with hazards that each have mitigations. | `RISK_HAZARDS_REQUIRED`, `RISK_HAZARD_MITIGATION_REQUIRED` |
+| Constraints | Each volume against Constraint Management. | `CONSTRAINT_CLEAR`, `CONSTRAINT_ADVISORY`, `CONSTRAINT_RESTRICTED`, `CONSTRAINT_BLOCKING` |
+| Conflicts | Overlap with other intents' active volumes in space and time. | `NO_CONFLICT`, `CONFLICT_REQUIRES_REVIEW`, `CONFLICT_BLOCKING` |
+| Priority and privilege | Placeholder policies today. | `PRIORITY_RULES_UNAVAILABLE`, `PRIVILEGE_RULES_UNAVAILABLE` |
+
+Requirements are stricter in the `APPROVAL_REQUEST` and `ACTIVATION` contexts.
+For example, a missing CONOPS is a warning while drafting but blocks approval.
+
+## Typical flow
+
+1. Save the plan with a [package](./operational-intents#create-intent-package).
+2. `POST .../validate` with `context: "CREATE"` and show the findings.
+3. `POST .../approval-requests` when the operator is ready.
+4. A reviewer with `operations.review.decide` reads `GET .../review-status`,
+   then approves, rejects, or requests changes.
+
+<EndpointTable endpoints={[review.validate, review.requestApproval, review.approve, review.reject, review.requestChanges, review.status]} />
+
+### Validate an operational intent \{#validate-intent\}
+
+<ApiEndpoint {...review.validate} />
+
+### Request approval \{#request-approval\}
+
+<ApiEndpoint {...review.requestApproval} />
+
+### Approve an operational intent \{#approve-intent\}
+
+<ApiEndpoint {...review.approve} />
+
+### Reject an operational intent \{#reject-intent\}
+
+<ApiEndpoint {...review.reject} />
+
+### Request changes \{#request-intent-changes\}
+
+<ApiEndpoint {...review.requestChanges} />
+
+### Get review status \{#get-review-status\}
+
+<ApiEndpoint {...review.status} />

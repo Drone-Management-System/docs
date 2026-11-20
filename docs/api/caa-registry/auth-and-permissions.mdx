@@ -1,181 +1,96 @@
 ---
-sidebar_position: 3
+sidebar_position: 2
 title: Auth and Permissions
 ---
 
 # Auth and Permissions
 
-Every route is protected by bearer token authentication except `GET /health`
-when health bypass is enabled. Authorization is based on permission strings
-resolved from token groups and direct permission claims.
+Every route requires a ZITADEL bearer token, with three exceptions:
 
-## Authentication Header
+| Route | Authentication |
+| --- | --- |
+| `GET /health` | Public while `ZITADEL_BYPASS_AUTH_FOR_HEALTH` is on (the default). |
+| `POST /integrations/zitadel/users` | ZITADEL Actions signature instead of a token. |
+| `POST /integrations/zitadel/users/deleted` | ZITADEL Actions signature instead of a token. |
 
-Clients must send an HTTP `Authorization` header using the bearer scheme:
+The two integration routes are only token-free while the health bypass is on,
+because they share the same public-path list.
+
+## Sending a token
 
 ```http
-Authorization: Bearer <jwt>
+Authorization: Bearer <access token>
 ```
 
-For service-user access, see [Sign and Call APIs](../../development/sign-and-call-api) for a
-template that signs a JWT assertion, exchanges it for an access token, and calls
-the API.
+For a service user, follow [Sign and Call APIs](../../development/sign-and-call-api)
+to sign a JWT assertion and exchange it for an access token.
 
-Invalid, missing, or non-bearer headers return:
+## Token verification
 
-```json
-{
-  "detail": "authentication_required"
-}
-```
-
-or:
-
-```json
-{
-  "detail": "invalid_authorization_header"
-}
-```
-
-## JWT Verification
-
-The auth layer uses `jose` to verify tokens against the configured remote JWKS.
-Verification checks:
+Tokens are verified with `jose` against the remote JWKS:
 
 | Check | Configuration |
 | --- | --- |
 | Signature | `ZITADEL_JWKS_URL` |
-| Issuer | `ZITADEL_ISSUER_URL` |
-| Audience | `ZITADEL_AUDIENCE` |
-| Subject presence | Standard `sub` claim |
+| Issuer (`iss`) | `ZITADEL_ISSUER_URL` |
+| Audience (`aud`) | `ZITADEL_AUDIENCE` |
+| Subject (`sub`) | Must be present. |
 
-If verification fails, the API returns:
+| Status | `detail` | Cause |
+| --- | --- | --- |
+| `401` | `authentication_required` | No `Authorization` header. |
+| `401` | `invalid_authorization_header` | The header is not `Bearer <token>`. |
+| `401` | `invalid_token` | Signature, issuer, audience, or expiry check failed. |
+| `401` | `token_subject_missing` | The token has no `sub`. |
+| `403` | `permission_denied` | The token is valid but lacks the route's permission. |
 
-```json
-{
-  "detail": "invalid_token"
-}
-```
+The service logs the expected issuer and audience on `invalid_token`, and the
+required permission plus the caller's groups on `permission_denied`.
 
-If the token has no `sub`, the API returns:
+## Where permissions come from
 
-```json
-{
-  "detail": "token_subject_missing"
-}
-```
+The service reads the claim named by `ZITADEL_GROUPS_CLAIM` (default
+`groups`). That claim can be a string, an array of strings, or an object whose
+keys are group names, which matches ZITADEL's project roles claim.
 
-## Auth Context
+Each value is then resolved:
 
-After verification, the service attaches `request.auth` with:
+1. A known group name expands to its permission set (table below).
+2. A value containing a dot, such as `ua.read`, is taken as a permission as-is.
+3. `*` and `admin.all` grant everything.
 
-| Field | Source |
-| --- | --- |
-| `token` | Raw bearer token. |
-| `subject` | `sub` claim. |
-| `username` | Claim named by `ZITADEL_USERNAME_CLAIM`, default `preferred_username`. |
-| `email` | Claim named by `ZITADEL_EMAIL_CLAIM`, default `email`. |
-| `groups` | Claim named by `ZITADEL_GROUPS_CLAIM`, default `groups`. |
-| `permissions` | Set built from groups and direct permission strings. |
-| `claims` | Complete verified JWT payload. |
+Wildcards also work per resource or per action: `ua.*` grants every `ua`
+permission, and `*.read` grants every read permission.
 
-The groups claim can be:
-
-- An array of strings.
-- A single string.
-- An object, in which case the object keys are treated as group names.
-
-## Permission Model
-
-Permissions use `resource.action` strings. Route handlers call
-`assertPermission(request.auth, "...")` before database access.
-
-| Permission | Grants |
-| --- | --- |
-| `organizations.read` | Read organizations. |
-| `organizations.write` | Create and replace organizations. |
-| `organizations.delete` | Delete organizations. |
-| `users.read` | Read registry users. |
-| `users.write` | Create and replace registry users. |
-| `users.delete` | Delete registry users. |
-| `operators.read` | Read operators and operator UAS lists. |
-| `operators.write` | Create and replace operators. |
-| `operators.delete` | Delete operators. |
-| `uas.read` | Read UAS records, certificates, and UAS lookup. |
-| `uas.write` | Create and replace UAS records. |
-| `uas.delete` | Delete UAS records. |
-| `ua.read` | Read UA aircraft records. |
-| `ua.write` | Create and replace UA aircraft records. |
-| `ua.delete` | Delete UA aircraft records. |
-| `reference.read` | Read operator types and user types. |
-| `reference.write` | Create and replace operator types and user types. |
-| `reference.delete` | Delete operator types and user types. |
-| `audit.read` | Read audit logs and entity histories. |
-| `search.read` | Use global search. |
-
-## Group Mapping
-
-The service maps these group names to permissions:
+## Groups
 
 | Group | Permissions |
 | --- | --- |
-| `caa_registry_admin` | `*` |
-| `caa_registry_manager` | Read and write permissions for organizations, users, operators, UAS, and UA. Also grants `reference.read`. |
-| `caa_registry_viewer` | Read-only registry permissions plus `reference.read` and `search.read`. |
-| `caa_registry_auditor` | `audit.read`. |
+| `caa_registry_admin` | All permissions (`*`). |
+| `caa_registry_manager` | `organizations.read`, `organizations.write`, `users.read`, `users.write`, `operators.read`, `operators.write`, `remote_ids.read`, `remote_ids.write`, `ua.read`, `ua.write`, `reference.read` |
+| `caa_registry_viewer` | `organizations.read`, `users.read`, `operators.read`, `remote_ids.read`, `ua.read`, `reference.read`, `search.read` |
+| `caa_registry_auditor` | `audit.read` |
 
-Managers can maintain registry records but cannot delete them, cannot write
-reference data, cannot search unless they also receive `search.read`, and cannot
-read audit history unless they also receive `audit.read`.
+Managers can create and edit but not delete, and cannot read audit history or
+use search. Combine groups when a user needs both.
 
-## Wildcards and Direct Permissions
+## Permissions
 
-The permission resolver accepts direct fine-grained permission strings in the
-groups claim. It also accepts wildcards:
-
-| Permission | Effect |
+| Permission | Grants |
 | --- | --- |
-| `*` | Grants every permission. |
-| `admin.all` | Grants every permission. |
-| `operators.*` | Grants all actions on operators. |
-| `*.read` | Grants read actions across resources. |
+| `organizations.read` / `.write` / `.delete` | Organizations, organization admins, organization property definitions and values. |
+| `users.read` / `.write` / `.delete` | Registry users and national ids. `users.read` and `users.write` also cover [system jobs](./endpoints/system-jobs). |
+| `operators.read` / `.write` / `.delete` | Operators, operator property definitions and values. |
+| `ua.read` / `.write` / `.delete` | UA aircraft, UA lookup, UA property definitions and values. |
+| `remote_ids.read` / `.write` / `.delete` | Remote ID records. |
+| `reference.read` / `.write` / `.delete` | Operator types and user types. |
+| `audit.read` | `/audit` and every `/:entity/:id/history` route. |
+| `search.read` | `GET /search`. |
 
-Examples:
+The `uas.*` permissions from earlier versions no longer exist.
 
-| Groups claim | Effective outcome |
-| --- | --- |
-| `["caa_registry_viewer"]` | Read organizations, users, operators, UAS, UA, reference data, and search. |
-| `["caa_registry_manager", "audit.read"]` | Manager write access plus audit read access. |
-| `["uas.write", "operators.read"]` | Direct UAS write and operator read access only. |
-| `["*.read"]` | Read access wherever the route requires an action named `read`. |
+## Audit actor
 
-## Permission Failures
-
-When the token is valid but lacks the required permission, the API returns:
-
-```json
-{
-  "detail": "permission_denied"
-}
-```
-
-with HTTP `403`.
-
-## Health Authentication Bypass
-
-`GET /health` is the only route that can bypass authentication. The route is
-public when `ZITADEL_BYPASS_AUTH_FOR_HEALTH` is omitted or set to `"true"`.
-If the variable is set to `"false"`, `/health` requires a bearer token like
-every other route.
-
-## Audit Actor Resolution
-
-Write operations record the actor in `public.audit_log`. Actor resolution uses:
-
-1. Auth email claim.
-2. Auth username claim.
-3. JWT subject.
-4. `"system"` only when no auth context exists.
-
-Normal authenticated API writes should therefore produce audit rows where
-`actor` is the user's email, username, or subject.
+Every write records an actor in the audit log: the token's email, then its
+username, then its subject. Writes made by the ZITADEL integration and system
+jobs are recorded as `system`.

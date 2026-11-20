@@ -3,66 +3,69 @@ sidebar_position: 1
 title: API Overview
 ---
 
-import Endpoint from '@site/src/components/Endpoint';
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import ApiEnvironment from '@site/src/components/ApiEnvironment';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {allEndpoints, health, pages} from '@site/src/data/operations-intents';
 
 # Operations Intents API
 
-Operations Intents owns operational intent records, mission volumes, CONOPS,
-risk assessment resources, validation, intent-volume links, filtering, and
-audit logs.
+Operations Intents is where operators plan flights and reviewers approve them.
+An **operational intent** ties together where and when the flight happens
+(4D volumes over 3D footprints), how it is run (a **CONOPS**), and why it is
+safe (a **risk assessment** with hazards and mitigations). The intent is then
+**validated** against airspace constraints and other traffic, and
+**approved**, **rejected**, or sent back for **changes**.
 
-The implementation lives in the sibling project at `../operations-intents`.
-Routes are registered at the service root; deployment gateways may add their
-own prefix.
-
-## Base URL
-
-When this API is wired into the docs config, use:
-
-```env
-DOCS_OPERATIONS_INTENTS_API_BASE_URL=https://operations-intents-api.example.com
+```mermaid
+flowchart LR
+  P["Plan<br/>POST /operational-intents/package"] --> V["Validate<br/>POST .../validate"]
+  V --> R["Request approval<br/>POST .../approval-requests"]
+  R -->|AUTO_APPROVE| AA[AUTO_APPROVED]
+  R --> PH[PENDING_HUMAN_APPROVAL]
+  PH -->|approve| HA[HUMAN_APPROVED]
+  PH -->|reject| RJ[REJECTED]
+  PH -->|request-changes| CR[CHANGES_REQUESTED]
+  CR -->|edit package| V
+  HA -->|material change| RA[REAPPROVAL_REQUIRED]
+  RA --> V
 ```
 
-Shell examples use:
+The service is Fastify 5 with TypeScript, PostgreSQL with PostGIS through
+Drizzle ORM, and the `uss_operations_api` schema. Validation calls the
+[Constraint Management API](../constraint-management/overview) at
+`CONSTRAINTS_API_URL`.
 
-```bash
-export OPERATIONS_INTENTS_API_BASE_URL="https://operations-intents-api.example.com"
-```
+## Environment
 
-## Endpoint Families
+<ApiEnvironment api="operations-intents" endpoints={allEndpoints} />
 
-| Family | Routes | Purpose |
+The service sends `Access-Control-Allow-Origin: *`, so the **Try it** console
+works directly from the browser.
+
+## Endpoint families
+
+| Family | Base routes | Purpose |
 | --- | --- | --- |
-| Health | `GET /health` | Check service readiness. |
-| [Operational intents](./endpoints/operational-intents) | `/operational-intents`, `/operational-intents/filter`, `/intent-volumes-4d` | Manage operation records, linked volumes, and filters. |
-| [Supporting resources](./endpoints/supporting-resources) | `/volumes-3d`, `/volumes-4d`, `/conops`, `/risk-assessments`, `/risk-hazards`, `/risk-mitigations` | Manage geometry, time windows, CONOPS, and risk data. |
-| [Validation and audit](./endpoints/validation-and-audit) | `/operational-intents/:id/validate`, `/audit-log` | Validate intents and read audit events. |
+| [Operational intents](./endpoints/operational-intents) | `/operational-intents`, `/operational-intents/package`, `/intent-volumes-4d` | Intents, one-request packages, and volume links. |
+| [Review workflow](./endpoints/review-workflow) | `/operational-intents/:id/validate`, `.../approval-requests`, `.../approve`, `.../reject`, `.../request-changes`, `.../review-status` | Validation and approval decisions. |
+| [Volumes](./endpoints/volumes) | `/volumes-3d`, `/volumes-4d` | Footprints and time windows. |
+| [CONOPS and risk](./endpoints/conops-and-risk) | `/conops`, `/risk-assessments`, `/risk-hazards`, `/risk-mitigations` | Operation concept and safety case. |
+| [Audit log](./endpoints/audit-log) | `/audit-log` | Write and decision history. |
 
-## `GET /health`
+## Health
 
-<Endpoint
-  method="GET"
-  path="/health"
-  title="Check service health"
-  auth="Public when health auth bypass is enabled; otherwise bearer token when auth is registered"
-  success="200 OK"
-  summary="Returns the basic service health marker."
-/>
+### Check service health \{#get-health\}
 
-```bash
-curl "$OPERATIONS_INTENTS_API_BASE_URL/health"
-```
+<ApiEndpoint {...health.get} />
 
-```json
-{
-  "status": "ok"
-}
-```
+## All endpoints
 
-## Recommended Reading Order
+<EndpointTable endpoints={allEndpoints} pages={pages} />
+
+## Recommended reading order
 
 1. [Auth and Permissions](./auth-and-permissions)
 2. [API Conventions](./api-conventions)
-3. [Operational Intents](./endpoints/operational-intents)
-4. [Supporting Resources](./endpoints/supporting-resources)
-5. [Validation and Audit](./endpoints/validation-and-audit)
+3. [Operational Intents](./endpoints/operational-intents), starting with the package endpoints
+4. [Review Workflow](./endpoints/review-workflow)

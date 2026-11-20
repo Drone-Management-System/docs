@@ -5,62 +5,95 @@ title: Auth and Permissions
 
 # Auth and Permissions
 
-Operations Intents includes ZITADEL-compatible bearer-token verification
-helpers, group-to-permission mapping, and standard auth error responses.
+Callers identify themselves with a ZITADEL bearer token, trusted actor headers
+from a backend, or both.
 
-## Current Registration State
+## When credentials are required
 
-In `../operations-intents/src/app.ts`, the auth plugin import exists but the
-registration is currently commented out:
+| Setting | Behavior |
+| --- | --- |
+| `AUTH_ENABLED=true` | Every route except `GET /health` needs a bearer token or actor headers. |
+| `AUTH_ENABLED` unset or `false` | Credentials are optional. Requests without them run as an anonymous actor and are recorded as `system`. |
+| `ZITADEL_BYPASS_AUTH_FOR_HEALTH` (default on) | `GET /health` is always public. |
 
-```ts
-// await app.register(registerAuthPlugin);
-```
+Enable `AUTH_ENABLED` in every shared environment.
 
-That means current route registration does not enforce authentication or
-per-route authorization in the Fastify request lifecycle. Mutable routes still
-write audit events using `request.auth` when an auth context is present.
-
-When the auth plugin is enabled, send:
+## Bearer tokens
 
 ```http
-Authorization: Bearer <jwt>
+Authorization: Bearer <access token>
 ```
 
-## Token Validation
+Tokens are verified against `ZITADEL_JWKS_URL`, `ZITADEL_ISSUER_URL`, and
+`ZITADEL_AUDIENCE`. Groups are read from `ZITADEL_GROUPS_CLAIM` (default
+`groups`).
 
-| Config key | Purpose | Default |
-| --- | --- | --- |
-| `ZITADEL_ISSUER_URL` | Expected issuer. | `http://localhost` |
-| `ZITADEL_JWKS_URL` | JWKS endpoint used by `jose`. | `http://localhost/.well-known/jwks.json` |
-| `ZITADEL_AUDIENCE` | Expected audience. | `local` |
-| `ZITADEL_GROUPS_CLAIM` | Claim used to resolve group names. | `groups` |
-| `ZITADEL_USERNAME_CLAIM` | Username claim copied into audit actor context. | `preferred_username` |
-| `ZITADEL_EMAIL_CLAIM` | Email claim copied into audit actor context. | `email` |
-| `ZITADEL_BYPASS_AUTH_FOR_HEALTH` | Allows public `GET /health` when enabled. | `true` when unset |
+## Trusted actor headers
 
-## Permission Model
+The Operations Intents dashboard's server forwards the signed-in user as
+headers, so the browser never needs a token for this API:
 
-The service currently carries the shared backend permission helper, but route
-handlers do not currently call `assertPermission`. Treat the permission map as
-available plumbing rather than an enforced endpoint contract.
-
-## Auth Error Envelope
-
-When auth is enabled, auth failures use:
-
-```json
-{
-  "detail": "authentication_required"
-}
-```
-
-Common auth details are:
-
-| Detail | Meaning |
+| Header | Meaning |
 | --- | --- |
-| `authentication_required` | Missing bearer token or missing auth context. |
-| `invalid_authorization_header` | Header did not match `Bearer <token>`. |
-| `invalid_token` | JWT verification failed. |
-| `token_subject_missing` | Verified token did not include a usable subject. |
-| `permission_denied` | A route called `assertPermission` and rejected the request. |
+| `x-actor-id` | The user's ZITADEL subject. Required when the other actor headers are present. Recorded as the audit actor. |
+| `x-actor-roles` | Optional, comma-separated: `operator`, `auditor`. |
+| `x-actor-permissions` | Optional, comma-separated permission names, validated against the API's list. |
+
+When a bearer token is also sent, it is verified, and its groups and
+permissions are merged with the headers.
+
+:::warning[Server-side only]
+
+The API trusts actor headers as sent. Only a backend you control should set
+them, and that backend must strip any copies sent by browsers. Browsers cannot
+send them directly: CORS only allows `Authorization` and `Content-Type`.
+
+:::
+
+## Roles and permissions
+
+Only the review workflow checks permissions. CRUD and package routes accept any
+authenticated caller.
+
+| Role | Permissions | Can |
+| --- | --- | --- |
+| `operator` | `operations.review` | Request approval. |
+| `auditor` | `operations.review`, `operations.review.decide` | Request approval, approve, reject, request changes. |
+
+ZITADEL groups are mapped to these roles by their last path segment:
+
+| Group (or `.../group`) | Role |
+| --- | --- |
+| `operator`, `caa_registry_manager`, `caa_registry_operator` | `operator` |
+| `auditor`, `admin`, `administrator`, `caa_registry_admin`, `caa_registry_auditor` | `auditor` |
+
+`caa_registry_admin` also maps to `*`, so it passes every check. As in the CAA
+Registry, a group containing a dot (for example `operations.review.decide`) is
+taken as a permission directly.
+
+| Route | Needs |
+| --- | --- |
+| `POST /operational-intents/:id/approval-requests` | `operations.review` or `operations.review.decide` |
+| `POST .../approve`, `.../reject`, `.../request-changes` | `operations.review.decide` |
+| `POST .../validate`, `GET .../review-status` | Any caller |
+
+## Errors
+
+| Status | `detail` | Cause |
+| --- | --- | --- |
+| `400` | `actor_id_header_required` | Actor role or permission headers without `x-actor-id`. |
+| `400` | `actor_roles_header_invalid` | A role other than `operator` or `auditor`. |
+| `400` | `actor_permissions_header_invalid` | An unknown permission name. |
+| `401` | `authentication_required` | `AUTH_ENABLED=true` and no credentials. |
+| `401` | `invalid_authorization_header` | The header is not `Bearer <token>`. |
+| `401` | `invalid_token` | The token failed verification. |
+| `403` | `APPROVAL_UNAUTHORIZED_REVIEWER` | A review decision without the required permission. |
+
+Review routes use a different error handler. Authentication failures on those
+routes currently come back as `500 INTERNAL_SERVER_ERROR` in the review
+envelope, not as `401`.
+
+## Audit actor
+
+The audit actor is `x-actor-id` when present; otherwise the token's email,
+username, or subject; otherwise `system`.

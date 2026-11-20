@@ -1,0 +1,127 @@
+---
+sidebar_position: 2
+title: Volumes
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {volume4dStatuses, volumeLinks, volumes3d, volumes4d} from '@site/src/data/constraint-management';
+
+# Volumes
+
+Volumes are the geometry behind every constraint:
+
+- A **3D volume** is a GeoJSON footprint with an altitude band.
+- A **4D volume** adds time (a validity window, or `permanent`), a status, a
+  default accessibility, and an optional rule. Each 4D volume is built on its
+  own 3D volume.
+- A **link** attaches a 4D volume to a constraint.
+
+Most clients create volumes inline through the
+[constraint endpoints](./airspace-constraints#attaching-a-volume). Use these
+endpoints to edit geometry or time windows directly.
+
+:::danger[Deletes cascade]
+
+Deleting a 3D or 4D volume also deletes the constraints linked to it. Deleting
+the 3D volume under an area also deletes the flight corridors that use that
+area. Check `GET /airspace-constraint-volume-links/filter?volume_4d_id=...`
+before deleting.
+
+:::
+
+<EndpointTable endpoints={[volumes3d.list, volumes3d.filter, volumes3d.get, volumes3d.create, volumes3d.replace, volumes3d.remove, volumes4d.list, volumes4d.filter, volumes4d.get, volumes4d.create, volumes4d.replace, volumes4d.remove, volume4dStatuses.list, volume4dStatuses.filter, volume4dStatuses.get, volumeLinks.list, volumeLinks.filter, volumeLinks.get, volumeLinks.create, volumeLinks.replace, volumeLinks.remove]} />
+
+## 3D volumes
+
+### List 3D volumes \{#list-volume-3d\}
+
+<ApiEndpoint {...volumes3d.list} />
+
+### Filter 3D volumes \{#filter-volume-3d\}
+
+<ApiEndpoint {...volumes3d.filter} />
+
+### Get a 3D volume \{#get-volume-3d\}
+
+<ApiEndpoint {...volumes3d.get} />
+
+### Create a 3D volume \{#create-volume-3d\}
+
+<ApiEndpoint {...volumes3d.create} />
+
+### Replace a 3D volume \{#replace-volume-3d\}
+
+<ApiEndpoint {...volumes3d.replace} />
+
+### Delete a 3D volume \{#delete-volume-3d\}
+
+<ApiEndpoint {...volumes3d.remove} />
+
+## 4D volumes
+
+### List 4D volumes \{#list-volume-4d\}
+
+<ApiEndpoint {...volumes4d.list} />
+
+### Filter 4D volumes \{#filter-volume-4d\}
+
+<ApiEndpoint {...volumes4d.filter} />
+
+### Get a 4D volume \{#get-volume-4d\}
+
+<ApiEndpoint {...volumes4d.get} />
+
+### Create a 4D volume \{#create-volume-4d\}
+
+<ApiEndpoint {...volumes4d.create} />
+
+### Replace a 4D volume \{#replace-volume-4d\}
+
+<ApiEndpoint {...volumes4d.replace} />
+
+### Delete a 4D volume \{#delete-volume-4d\}
+
+<ApiEndpoint {...volumes4d.remove} />
+
+## 4D volume statuses
+
+A read-only lookup table. The seeded codes are `ACTIVE`, `INACTIVE`, `DRAFT`, `SCHEDULED`, and `EXPIRED`.
+
+### List 4D volume statuses \{#list-volume-4d-status\}
+
+<ApiEndpoint {...volume4dStatuses.list} />
+
+### Filter 4D volume statuses \{#filter-volume-4d-status\}
+
+<ApiEndpoint {...volume4dStatuses.filter} />
+
+### Get a volume status \{#get-volume-4d-status\}
+
+<ApiEndpoint {...volume4dStatuses.get} />
+
+## Constraint volume links
+
+### List constraint volume links \{#list-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.list} />
+
+### Filter constraint volume links \{#filter-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.filter} />
+
+### Get a constraint volume link \{#get-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.get} />
+
+### Create a constraint volume link \{#create-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.create} />
+
+### Replace a constraint volume link \{#replace-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.replace} />
+
+### Delete a constraint volume link \{#delete-constraint-volume-link\}
+
+<ApiEndpoint {...volumeLinks.remove} />

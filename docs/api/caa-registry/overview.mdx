@@ -3,87 +3,84 @@ sidebar_position: 1
 title: API Overview
 ---
 
-import ApiBaseUrl from '@site/src/components/ApiBaseUrl';
-import Endpoint from '@site/src/components/Endpoint';
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import ApiEnvironment from '@site/src/components/ApiEnvironment';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {allEndpoints, health, pages} from '@site/src/data/caa-registry';
 
 # CAA Registry API
 
-This is the public-facing API reference for consumers of the CAA Registry
-service. It describes how to authenticate, what endpoints are available, how
-requests and responses are shaped, and what errors clients should expect.
+The CAA Registry is the system of record for who may fly and with what:
+organizations, their users and admins, approved operators, registered UA
+aircraft, Remote ID records, and custom properties attached to them. Every
+write is audited.
 
-For implementation details such as service startup, plugins, database schema,
-and internal ownership, see the [CAA Registry module architecture](../../modules/caa-registry/overview).
+It is a Fastify 5 service written in TypeScript on Bun, backed by PostgreSQL
+through Drizzle ORM, with ZITADEL OIDC tokens for authentication. For service
+internals see the [module architecture](../../modules/caa-registry/overview).
 
-## Configured Base URL
+## Environment
 
-This docs build is configured with:
+Every endpoint card on these pages has a **Try it** console. Set the base URL
+and a token once here, and every console for this API uses them. You can also
+download a Postman collection generated from these pages.
 
-<ApiBaseUrl />
+<ApiEnvironment api="caa-registry" endpoints={allEndpoints} />
 
-The value comes from `.env`:
+:::note[Browser requests]
 
-```env
-DOCS_CAA_REGISTRY_API_BASE_URL=https://caa-registry-api.example.com
-```
+The CAA Registry does not send CORS headers. The **Try it** console works only
+when the docs and the API share an origin, or through a proxy. Otherwise, copy
+the generated cURL command and run it from a terminal.
 
-When the Proxmox deployment URL changes, update that variable, rebuild, and
-redeploy the docs. Endpoint examples use a shell variable so they stay portable:
+:::
 
-```bash
-export CAA_REGISTRY_API_BASE_URL="https://caa-registry-api.example.com"
-```
+## What changed in this version
 
-Then call endpoints with:
+- **The UAS layer is gone.** UA aircraft now belong directly to an organization
+  through `org_id`. The `/uas` routes, `uas.*` permissions, and the
+  `/lookup/uas/...` route no longer exist.
+- **New resources:** [Remote IDs](./endpoints/remote-ids),
+  [organization admins](./endpoints/organizations#list-organization-admins), and
+  [custom properties](./endpoints/custom-properties) for operators,
+  organizations, and aircraft.
+- **Generic filtering:** every table has a [`POST .../filter`](./endpoints/filters)
+  endpoint with typed operators, `match: any`, sorting, and `all: true`.
+- **Ownership guards:** `PUT` and `DELETE` on operators and aircraft accept
+  `expected_org_id` as a compare-and-set check.
 
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "$CAA_REGISTRY_API_BASE_URL/health"
-```
+## Endpoint families
 
-## Endpoint Families
-
-| Family | Routes | Purpose |
+| Family | Base routes | Purpose |
 | --- | --- | --- |
-| Health | `GET /health` | Check service readiness. |
-| [Reference data](./endpoints/reference-data) | `/operator-types`, `/user-types` | Manage operator and user classification values. |
-| [Organizations](./endpoints/organizations) | `/organizations` | Manage registry organizations. |
-| [Users](./endpoints/users) | `/users` | Manage registry users. |
-| [ZITADEL integrations](./endpoints/zitadel-integrations) | `/integrations/zitadel/users` | Receive signed identity lifecycle events. |
-| [Operators](./endpoints/operators) | `/operators` | Manage approved operators. |
-| [UAS records](./endpoints/uas) | `/uas` | Manage UAS registrations and certificates. |
-| [UA aircraft](./endpoints/ua-aircraft) | `/ua`, `/uas/:uasId/ua` | Manage aircraft records under UAS registrations. |
-| [Lookup](./endpoints/lookup-and-search) | `/lookup/uas/:registrationId` | Fetch an operational UAS registration view. |
-| [Search](./endpoints/lookup-and-search) | `/search` | Search across registry entities. |
-| [Audit](./endpoints/audit) | `/audit`, `/:entity/:id/history` | Read write history. |
-| [System jobs](./endpoints/system-jobs) | `/system/jobs` | Queue and inspect durable background jobs. |
+| [Reference data](./endpoints/reference-data) | `/operator-types`, `/user-types` | Classification values. |
+| [Organizations](./endpoints/organizations) | `/organizations`, `/organization-admins` | Registry participants and their admins. |
+| [Users](./endpoints/users) | `/users` | Registry users and national ids. |
+| [ZITADEL integrations](./endpoints/zitadel-integrations) | `/integrations/zitadel/...` | Signed identity lifecycle events. |
+| [Operators](./endpoints/operators) | `/operators` | Approved operators. |
+| [UA aircraft](./endpoints/ua-aircraft) | `/ua` | Registered aircraft. |
+| [Remote IDs](./endpoints/remote-ids) | `/remote-ids` | Remote ID certificate records. |
+| [Custom properties](./endpoints/custom-properties) | `/*-property-names`, `/*-properties` | Typed, validated extra fields. |
+| [Lookup and search](./endpoints/lookup-and-search) | `/lookup/ua/...`, `/search` | Operational lookup and cross-entity search. |
+| [Filters](./endpoints/filters) | `/<resource>/filter` | Structured queries on any table. |
+| [Audit](./endpoints/audit) | `/audit`, `/<entity>/:id/history` | Write history. |
+| [System jobs](./endpoints/system-jobs) | `/system/jobs` | Background ZITADEL reconciliation. |
 
-## `GET /health`
+## Health
 
-<Endpoint
-  method="GET"
-  path="/health"
-  title="Check service health"
-  auth="Public when health auth bypass is enabled; otherwise bearer token"
-  success="200 OK"
-  summary="Checks database connectivity and reports cache availability."
-/>
+### Check service health \{#get-health\}
 
-```bash
-curl "$CAA_REGISTRY_API_BASE_URL/health"
-```
+<ApiEndpoint {...health.get} />
 
-```json
-{
-  "status": "ok",
-  "database": "ok",
-  "cache": "disabled_or_unavailable"
-}
-```
+## All endpoints
 
-## Recommended Reading Order
+<EndpointTable endpoints={allEndpoints.filter((endpoint) => endpoint.group !== 'Filters')} pages={pages} />
+
+The 18 filter endpoints are listed on the [Filters](./endpoints/filters) page.
+
+## Recommended reading order
 
 1. [Auth and Permissions](./auth-and-permissions)
-2. [Sign and Call APIs](../../development/sign-and-call-api)
-3. [API Conventions](./api-conventions)
-4. [Endpoint pages](./endpoints/reference-data) for the resources you need
+2. [API Conventions](./api-conventions)
+3. [Reference Data](./endpoints/reference-data), then [Organizations](./endpoints/organizations)
+4. [Users](./endpoints/users), [Operators](./endpoints/operators), and [UA Aircraft](./endpoints/ua-aircraft)

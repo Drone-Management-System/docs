@@ -1,0 +1,54 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.6rem;
+  height: 1.75rem;
+  padding: 0 0.55rem;
+  border-radius: 6px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--method-fg);
+  background: var(--method-bg);
+  box-shadow: inset 0 0 0 1px var(--method-ring);
+  flex-shrink: 0;
+}
+
+.small {
+  min-width: 3.1rem;
+  height: 1.4rem;
+  font-size: 0.7rem;
+  padding: 0 0.4rem;
+}
+
+.get {
+  --method-fg: var(--dms-get-fg);
+  --method-bg: var(--dms-get-bg);
+  --method-ring: var(--dms-get-ring);
+}
+
+.post {
+  --method-fg: var(--dms-post-fg);
+  --method-bg: var(--dms-post-bg);
+  --method-ring: var(--dms-post-ring);
+}
+
+.put {
+  --method-fg: var(--dms-put-fg);
+  --method-bg: var(--dms-put-bg);
+  --method-ring: var(--dms-put-ring);
+}
+
+.patch {
+  --method-fg: var(--dms-patch-fg);
+  --method-bg: var(--dms-patch-bg);
+  --method-ring: var(--dms-patch-ring);
+}
+
+.delete {
+  --method-fg: var(--dms-delete-fg);
+  --method-bg: var(--dms-delete-bg);
+  --method-ring: var(--dms-delete-ring);
+}

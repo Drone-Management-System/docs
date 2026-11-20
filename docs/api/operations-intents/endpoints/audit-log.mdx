@@ -1,0 +1,25 @@
+---
+sidebar_position: 5
+title: Audit Log
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {auditLog} from '@site/src/data/operations-intents';
+
+# Audit Log
+
+Every write, package save, and review decision appends an audit event with the
+before and after JSON. Package writes are recorded on the intent as
+`create_package` or `update_package`; volume links use the entity id
+`<intent_id>:<volume_4d_id>`.
+
+<EndpointTable endpoints={[auditLog.list, auditLog.get]} />
+
+### List audit events \{#list-audit-log\}
+
+<ApiEndpoint {...auditLog.list} />
+
+### Get an audit event \{#get-audit-log\}
+
+<ApiEndpoint {...auditLog.get} />

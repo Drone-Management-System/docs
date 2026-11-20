@@ -3,88 +3,100 @@ sidebar_position: 1
 title: Operational Intents
 ---
 
-import Endpoint from '@site/src/components/Endpoint';
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {intentVolumes, intents} from '@site/src/data/operations-intents';
 
 # Operational Intents
 
-Operational intent records link a CONOPS record and a risk assessment. Their
-operation geometry and time windows are modeled through linked 4D volumes.
+An operational intent is a planned flight. The intent row itself is small: a
+CONOPS id, a risk assessment id, and the latest validation and approval status.
+Its volumes are attached through links.
 
-## Write Body
+There are two ways to build one:
+
+- **Package endpoints (recommended).** Send the whole plan in one request,
+  with new or existing CONOPS, risk assessment, hazards, mitigations, and
+  volumes. Everything is written in one transaction.
+- **Resource endpoints.** Create each record separately, then link volumes with
+  `/intent-volumes-4d`. This is useful for editors that save one part at a
+  time.
+
+## Package references
+
+Every nested item in a package can be:
+
+| Form | Example | Effect |
+| --- | --- | --- |
+| An id | `"10000000-0000-4000-8000-000000000002"` | Use the existing record. |
+| An id object | `{ "id": "10000000-..." }` | Same as an id. |
+| A full object | `{ "name": "...", ... }` | Create a new record. |
+| A full object with `id` | `{ "id": "...", "name": "...", ... }` | Update that existing record. |
+
+A minimal package only needs volumes:
 
 ```json
-{
-  "conops_id": "1e61c0b6-7b24-4234-8f06-1ad6ad455878",
-  "risk_assessment_id": "db319c3f-e51f-4f52-a4c9-df1865ce86f0"
-}
+{ "volumes": ["10000000-0000-4000-8000-000000000004"] }
 ```
 
-## Endpoint Catalog
+<EndpointTable endpoints={[intents.createPackage, intents.updatePackage, intents.list, intents.filter, intents.get, intents.create, intents.replace, intents.remove, intentVolumes.list, intentVolumes.get, intentVolumes.create, intentVolumes.remove]} />
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/operational-intents` | List operational intents. |
-| `GET` | `/operational-intents/:ID` | Fetch one operational intent. |
-| `POST` | `/operational-intents` | Create an operational intent. |
-| `PUT` | `/operational-intents/:ID` | Replace an operational intent. |
-| `DELETE` | `/operational-intents/:ID` | Delete an operational intent. |
-| `GET` | `/operational-intents/filter` | List operational intents matching linked-volume filters. |
-| `POST` | `/operational-intents/:id/validate` | Validate one operational intent. |
+## Packages
 
-## `POST /operational-intents`
+### Create an intent package \{#create-intent-package\}
 
-<Endpoint
-  method="POST"
-  path="/operational-intents"
-  title="Create operational intent"
-  success="201 Created"
-  summary="Creates an operational intent linked to CONOPS and risk assessment records."
-/>
+<ApiEndpoint {...intents.createPackage} />
 
-```bash
-curl -X POST "$OPERATIONS_INTENTS_API_BASE_URL/operational-intents" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "conops_id": "1e61c0b6-7b24-4234-8f06-1ad6ad455878",
-    "risk_assessment_id": "db319c3f-e51f-4f52-a4c9-df1865ce86f0"
-  }'
-```
+### Update an intent package \{#update-intent-package\}
 
-## `GET /operational-intents/filter`
+Editing an approved intent is a material change: its review status reports `reapproval_required: true` until it is validated and approved again.
 
-<Endpoint
-  method="GET"
-  path="/operational-intents/filter"
-  title="Filter operational intents"
-  success="200 OK"
-  summary="Filters operational intents by linked 4D volume state, time, and position."
-/>
+<ApiEndpoint {...intents.updatePackage} />
 
-### Query Parameters
+## Operational intents
 
-| Parameter | Default | Notes |
-| --- | --- | --- |
-| `limit` | `50` | Number of rows to return, max `200`. |
-| `offset` | `0` | Number of rows to skip, max `100000`. |
-| `active` | None | Filters linked volumes by active or non-active status. |
-| `current_time` or `current` | None | Filters linked volumes against current server time. |
-| `start_time` or `start` | None | Start of a linked-volume overlap window. |
-| `end_time` or `end` | None | End of a linked-volume overlap window. |
-| `latitude` or `lat` | None | Position latitude. |
-| `longitude`, `lng`, or `lon` | None | Position longitude. |
-| `buffer_m` | `0` | Position buffer in meters. |
+### List operational intents \{#list-operational-intent\}
 
-## Intent Volume Links
+<ApiEndpoint {...intents.list} />
 
-`/intent-volumes-4d` links operational intents to 4D volumes. The resource uses
-a composite key of `intent_id` and `volume_4d_id`.
+### Filter operational intents \{#filter-operational-intents\}
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/intent-volumes-4d` | List links, optionally filtered by `intent_id` or `volume_4d_id`. |
-| `GET` | `/intent-volumes-4d/:intentID/:volume4DID` | Fetch one link. |
-| `POST` | `/intent-volumes-4d` | Create a link. |
-| `DELETE` | `/intent-volumes-4d/:intentID/:volume4DID` | Delete a link. |
+This answers questions like "which operations are flying near this point right now?", for example `current_time=true&latitude=25.085&longitude=55.145&buffer_m=500`.
 
-Duplicate links return `intent_volume_4d_already_exists`.
+<ApiEndpoint {...intents.filter} />
+
+### Get an operational intent \{#get-operational-intent\}
+
+<ApiEndpoint {...intents.get} />
+
+### Create an operational intent \{#create-operational-intent\}
+
+Creates the intent row only. Link volumes afterwards, or use the package endpoint instead.
+
+<ApiEndpoint {...intents.create} />
+
+### Replace an operational intent \{#replace-operational-intent\}
+
+<ApiEndpoint {...intents.replace} />
+
+### Delete an operational intent \{#delete-operational-intent\}
+
+<ApiEndpoint {...intents.remove} />
+
+## Intent volume links
+
+### List intent volume links \{#list-intent-volumes\}
+
+<ApiEndpoint {...intentVolumes.list} />
+
+### Get an intent volume link \{#get-intent-volume\}
+
+<ApiEndpoint {...intentVolumes.get} />
+
+### Link a volume to an intent \{#create-intent-volume\}
+
+<ApiEndpoint {...intentVolumes.create} />
+
+### Unlink a volume from an intent \{#delete-intent-volume\}
+
+<ApiEndpoint {...intentVolumes.remove} />

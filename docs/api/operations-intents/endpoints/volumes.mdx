@@ -1,0 +1,66 @@
+---
+sidebar_position: 3
+title: Volumes
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {volumes3d, volumes4d} from '@site/src/data/operations-intents';
+
+# Volumes
+
+Volumes describe where and when an operation flies. A **3D volume** is a
+GeoJSON footprint with an altitude band. A **4D volume** adds a validity window
+and a status, and points at one 3D volume. An intent can use several 4D volumes
+(see [intent volume links](./operational-intents#intent-volume-links)), and
+volumes can be created inline in a [package](./operational-intents#create-intent-package).
+
+Unlike in Constraint Management, these volumes always have a time window, and
+deleting one does not cascade. Deletes fail with `*_has_linked_records` while
+something still references the volume.
+
+<EndpointTable endpoints={[volumes3d.list, volumes3d.get, volumes3d.create, volumes3d.replace, volumes3d.remove, volumes4d.list, volumes4d.get, volumes4d.create, volumes4d.replace, volumes4d.remove]} />
+
+## 3D volumes
+
+### List 3D volumes \{#list-volume-3d\}
+
+<ApiEndpoint {...volumes3d.list} />
+
+### Get a 3D volume \{#get-volume-3d\}
+
+<ApiEndpoint {...volumes3d.get} />
+
+### Create a 3D volume \{#create-volume-3d\}
+
+<ApiEndpoint {...volumes3d.create} />
+
+### Replace a 3D volume \{#replace-volume-3d\}
+
+<ApiEndpoint {...volumes3d.replace} />
+
+### Delete a 3D volume \{#delete-volume-3d\}
+
+<ApiEndpoint {...volumes3d.remove} />
+
+## 4D volumes
+
+### List 4D volumes \{#list-volume-4d\}
+
+<ApiEndpoint {...volumes4d.list} />
+
+### Get a 4D volume \{#get-volume-4d\}
+
+<ApiEndpoint {...volumes4d.get} />
+
+### Create a 4D volume \{#create-volume-4d\}
+
+<ApiEndpoint {...volumes4d.create} />
+
+### Replace a 4D volume \{#replace-volume-4d\}
+
+<ApiEndpoint {...volumes4d.replace} />
+
+### Delete a 4D volume \{#delete-volume-4d\}
+
+<ApiEndpoint {...volumes4d.remove} />

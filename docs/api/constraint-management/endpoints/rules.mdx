@@ -1,0 +1,51 @@
+---
+sidebar_position: 4
+title: Rules
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {rules} from '@site/src/data/constraint-management';
+
+# Rules
+
+Rules describe who may enter a volume. A 4D volume points to at most one rule
+through `rule_id`. The rule's `action` (`ALLOW` or `DENY`) overrides the
+volume's `default_accessibility` for traffic matching `command`. `PRIMARY` and
+`SECONDARY` set precedence for consumers that evaluate several rules.
+
+The API stores `command` as-is; evaluating it is up to consumers such as
+Operations Intents. Rules are included in full in the
+[constraint snapshot](./snapshot-and-audit).
+
+<EndpointTable endpoints={[rules.list, rules.filter, rules.get, rules.create, rules.replace, rules.remove, rules.bulk]} />
+
+### List rules \{#list-rule\}
+
+<ApiEndpoint {...rules.list} />
+
+### Filter rules \{#filter-rule\}
+
+<ApiEndpoint {...rules.filter} />
+
+### Get a rule \{#get-rule\}
+
+<ApiEndpoint {...rules.get} />
+
+### Create a rule \{#create-rule\}
+
+<ApiEndpoint {...rules.create} />
+
+### Replace a rule \{#replace-rule\}
+
+<ApiEndpoint {...rules.replace} />
+
+### Delete a rule \{#delete-rule\}
+
+<ApiEndpoint {...rules.remove} />
+
+### Save rules in bulk \{#bulk-rules\}
+
+If any id is missing, nothing is saved. The response lists every rule by outcome.
+
+<ApiEndpoint {...rules.bulk} />

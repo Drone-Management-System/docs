@@ -1,0 +1,80 @@
+---
+sidebar_position: 3
+title: Volume Properties
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {properties, propertyNames} from '@site/src/data/constraint-management';
+
+# Volume Properties
+
+Volume properties attach typed custom fields to 4D volumes, such as a noise
+limit or a maximum aircraft class. First define a property, then assign values
+to volumes. Values are always strings, validated against the definition's
+`data_type` and `domain_values`.
+
+| `data_type` | Value example |
+| --- | --- |
+| `string` | `"CLASS_C"` |
+| `integer` / `number` | `"65"`, `"2.5"` |
+| `boolean` | `"true"` |
+| `date` / `datetime` | `"2026-06-10"`, `"2026-06-10T06:00:00Z"` |
+| `json` | `"{\"bands\":[2.4,5.8]}"` |
+
+Values are included in every 4D volume read under `properties`, each with its
+`property_name` definition.
+
+<EndpointTable endpoints={[propertyNames.list, propertyNames.filter, propertyNames.get, propertyNames.create, propertyNames.replace, propertyNames.remove, properties.list, properties.filter, properties.get, properties.create, properties.replace, properties.remove]} />
+
+## Property definitions
+
+### List property definitions \{#list-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.list} />
+
+### Filter property definitions \{#filter-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.filter} />
+
+### Get a property definition \{#get-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.get} />
+
+### Create a property definition \{#create-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.create} />
+
+### Replace a property definition \{#replace-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.replace} />
+
+### Delete a property definition \{#delete-volume-4d-property-name\}
+
+<ApiEndpoint {...propertyNames.remove} />
+
+## Property values
+
+### List property values \{#list-volume-4d-property\}
+
+<ApiEndpoint {...properties.list} />
+
+### Filter property values \{#filter-volume-4d-property\}
+
+<ApiEndpoint {...properties.filter} />
+
+### Get a property value \{#get-volume-4d-property\}
+
+<ApiEndpoint {...properties.get} />
+
+### Create a property value \{#create-volume-4d-property\}
+
+<ApiEndpoint {...properties.create} />
+
+### Replace a property value \{#replace-volume-4d-property\}
+
+<ApiEndpoint {...properties.replace} />
+
+### Delete a property value \{#delete-volume-4d-property\}
+
+<ApiEndpoint {...properties.remove} />

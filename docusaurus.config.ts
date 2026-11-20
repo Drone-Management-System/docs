@@ -37,16 +37,26 @@ function loadEnvFile(fileName: string): void {
 loadEnvFile('.env.local');
 loadEnvFile('.env');
 
-const caaRegistryApiBaseUrl =
-  process.env.DOCS_CAA_REGISTRY_API_BASE_URL ??
-  'https://caa-registry-api.example.com';
+const apiBaseUrls = {
+  'caa-registry':
+    process.env.DOCS_CAA_REGISTRY_API_BASE_URL || 'https://caa-registry-api.example.com',
+  'constraint-management':
+    process.env.DOCS_CONSTRAINT_MANAGEMENT_API_BASE_URL ||
+    'https://constraint-management-api.example.com',
+  'operations-intents':
+    process.env.DOCS_OPERATIONS_INTENTS_API_BASE_URL ||
+    'https://operations-intents-api.example.com',
+  'remote-identification':
+    process.env.DOCS_REMOTE_IDENTIFICATION_API_BASE_URL ||
+    'https://remote-identification-api.example.com',
+};
 
 const config: Config = {
   title: 'DMS Backend Docs',
   tagline: 'Public API references and backend module architecture',
   favicon: 'img/favicon.ico',
   customFields: {
-    caaRegistryApiBaseUrl,
+    apiBaseUrls,
   },
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
@@ -118,40 +128,25 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {
-              label: 'Overview',
-              to: '/docs/intro',
-            },
-            {
-              label: 'API Reference',
-              to: '/docs/api/overview',
-            },
+            {label: 'Overview', to: '/docs/intro'},
+            {label: 'API Catalog', to: '/docs/api/overview'},
+            {label: 'Sign and Call APIs', to: '/docs/development/sign-and-call-api'},
           ],
         },
         {
           title: 'API Reference',
           items: [
-            {
-              label: 'API Catalog',
-              to: '/docs/api/overview',
-            },
-            {
-              label: 'CAA Registry',
-              to: '/docs/api/caa-registry/overview',
-            },
+            {label: 'CAA Registry', to: '/docs/api/caa-registry/overview'},
+            {label: 'Constraint Management', to: '/docs/api/constraint-management/overview'},
+            {label: 'Operations Intents', to: '/docs/api/operations-intents/overview'},
+            {label: 'Remote Identification', to: '/docs/api/remote-identification/overview'},
           ],
         },
         {
           title: 'Module Architecture',
           items: [
-            {
-              label: 'CAA Registry Module',
-              to: '/docs/modules/caa-registry/overview',
-            },
-            {
-              label: 'Data Model',
-              to: '/docs/modules/caa-registry/data-model',
-            },
+            {label: 'CAA Registry Module', to: '/docs/modules/caa-registry/overview'},
+            {label: 'Data Model', to: '/docs/modules/caa-registry/data-model'},
           ],
         },
       ],
@@ -160,6 +155,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
+      additionalLanguages: ['bash', 'http', 'json'],
     },
   } satisfies Preset.ThemeConfig,
 };

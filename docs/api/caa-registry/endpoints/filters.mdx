@@ -1,0 +1,138 @@
+---
+sidebar_position: 10
+title: Filters
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {filters} from '@site/src/data/caa-registry';
+
+# Filters
+
+Every registry table has a `POST <resource>/filter` endpoint for structured
+queries. Filters are typed per column, can be combined with AND or OR, can sort
+on any column, and can return every match at once.
+
+## Request body
+
+```json
+{
+  "filters": [
+    { "column": "organization_kind", "operator": "in", "value": ["OPERATOR", "USS"] },
+    { "column": "created_at", "operator": "gte", "value": "2026-01-01T00:00:00Z" }
+  ],
+  "match": "all",
+  "order_by": [{ "column": "org_name", "direction": "asc" }],
+  "limit": 50,
+  "offset": 0
+}
+```
+
+Every key is optional. An empty body returns the first page of the table,
+ordered by primary key.
+
+## Operators
+
+| Operator | Columns | `value` |
+| --- | --- | --- |
+| `eq`, `ne` | All | A scalar. `null` means `IS NULL` / `IS NOT NULL`. |
+| `in`, `not_in` | All | An array of 1 to 1000 scalars. |
+| `gt`, `gte`, `lt`, `lte` | Text, numbers, dates, timestamps | A scalar. |
+| `contains`, `starts_with`, `ends_with` | Text | A string, matched case-insensitively and literally (`%` and `_` are not wildcards). |
+| `json_contains` | JSONB | A JSON value, using PostgreSQL `@>`. |
+| `is_null`, `is_not_null` | All | Must be omitted. |
+
+Values are checked against the column type: UUIDs must be UUIDs, `date` columns
+take `YYYY-MM-DD`, timestamps take ISO 8601 with an offset (microseconds are
+kept), integers must fit the column, and enum-like text columns take only their
+allowed values. A mismatch returns `filter_value_invalid:<column>`.
+
+## Organization scope
+
+The operators, operator properties, UA, and UA properties filters also accept a
+top-level `org_id`. It is applied outside `match`, so `"match": "any"` cannot
+return rows from other organizations. For property values, the scope follows
+the parent's current organization.
+
+## Paging and `all`
+
+Responses use the [standard page envelope](../api-conventions#pagination).
+Send `"all": true` to return every match in one response. The envelope then has
+`limit: null` and `has_more: false`. `all` cannot be combined with `limit` or
+`offset`.
+
+## Endpoints
+
+<EndpointTable endpoints={[filters['organizations'], filters['organization-admins'], filters['organization-properties'], filters['organization-property-names'], filters['users'], filters['user-identities'], filters['operators'], filters['operator-properties'], filters['operator-property-names'], filters['operator-types'], filters['user-types'], filters['ua'], filters['ua-properties'], filters['ua-property-names'], filters['remote-ids'], filters['audit'], filters['system-jobs'], filters['system-job-state']]} />
+
+### Filter organizations \{#filter-organizations\}
+
+<ApiEndpoint {...filters['organizations']} />
+
+### Filter organization admins \{#filter-organization-admins\}
+
+<ApiEndpoint {...filters['organization-admins']} />
+
+### Filter organization property values \{#filter-organization-properties\}
+
+<ApiEndpoint {...filters['organization-properties']} />
+
+### Filter organization property definitions \{#filter-organization-property-names\}
+
+<ApiEndpoint {...filters['organization-property-names']} />
+
+### Filter users \{#filter-users\}
+
+<ApiEndpoint {...filters['users']} />
+
+### Filter user identity links \{#filter-user-identities\}
+
+<ApiEndpoint {...filters['user-identities']} />
+
+### Filter operators \{#filter-operators\}
+
+<ApiEndpoint {...filters['operators']} />
+
+### Filter operator property values \{#filter-operator-properties\}
+
+<ApiEndpoint {...filters['operator-properties']} />
+
+### Filter operator property definitions \{#filter-operator-property-names\}
+
+<ApiEndpoint {...filters['operator-property-names']} />
+
+### Filter operator types \{#filter-operator-types\}
+
+<ApiEndpoint {...filters['operator-types']} />
+
+### Filter user types \{#filter-user-types\}
+
+<ApiEndpoint {...filters['user-types']} />
+
+### Filter UA aircraft \{#filter-ua\}
+
+<ApiEndpoint {...filters['ua']} />
+
+### Filter ua property values \{#filter-ua-properties\}
+
+<ApiEndpoint {...filters['ua-properties']} />
+
+### Filter ua property definitions \{#filter-ua-property-names\}
+
+<ApiEndpoint {...filters['ua-property-names']} />
+
+### Filter remote id records \{#filter-remote-ids\}
+
+<ApiEndpoint {...filters['remote-ids']} />
+
+### Filter audit events \{#filter-audit\}
+
+<ApiEndpoint {...filters['audit']} />
+
+### Filter system jobs \{#filter-system-jobs\}
+
+<ApiEndpoint {...filters['system-jobs']} />
+
+### Filter system job state \{#filter-system-job-state\}
+
+<ApiEndpoint {...filters['system-job-state']} />

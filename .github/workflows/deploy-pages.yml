@@ -41,6 +41,9 @@ jobs:
         run: bun run build
         env:
           DOCS_CAA_REGISTRY_API_BASE_URL: ${{ vars.DOCS_CAA_REGISTRY_API_BASE_URL || 'https://caa-registry-api.example.com' }}
+          DOCS_CONSTRAINT_MANAGEMENT_API_BASE_URL: ${{ vars.DOCS_CONSTRAINT_MANAGEMENT_API_BASE_URL || 'https://constraint-management-api.example.com' }}
+          DOCS_OPERATIONS_INTENTS_API_BASE_URL: ${{ vars.DOCS_OPERATIONS_INTENTS_API_BASE_URL || 'https://operations-intents-api.example.com' }}
+          DOCS_REMOTE_IDENTIFICATION_API_BASE_URL: ${{ vars.DOCS_REMOTE_IDENTIFICATION_API_BASE_URL || 'https://remote-identification-api.example.com' }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

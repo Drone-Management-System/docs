@@ -1,0 +1,39 @@
+---
+sidebar_position: 1
+title: Certificates
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {certificates} from '@site/src/data/remote-identification';
+
+# Certificates
+
+A certificate identifies an aircraft for Remote ID: which aircraft (`uas_id`),
+who issued it (`authority_id`), its reference and subject, and when it is
+valid. Sessions use a certificate, so a certificate cannot be deleted while
+sessions reference it.
+
+<EndpointTable endpoints={[certificates.list, certificates.get, certificates.create, certificates.replace, certificates.remove]} />
+
+### List certificates \{#list-certificates\}
+
+<ApiEndpoint {...certificates.list} />
+
+### Get a certificate \{#get-certificate\}
+
+<ApiEndpoint {...certificates.get} />
+
+### Create a certificate \{#create-certificate\}
+
+<ApiEndpoint {...certificates.create} />
+
+### Replace a certificate \{#replace-certificate\}
+
+Set `status_code` to record suspension or revocation.
+
+<ApiEndpoint {...certificates.replace} />
+
+### Delete a certificate \{#delete-certificate\}
+
+<ApiEndpoint {...certificates.remove} />

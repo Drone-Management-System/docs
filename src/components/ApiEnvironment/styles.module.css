@@ -1,0 +1,136 @@
+.panel {
+  margin: 1rem 0 2rem;
+  border: 1px solid var(--dms-border);
+  border-radius: 12px;
+  background: var(--dms-surface);
+  box-shadow: var(--dms-shadow);
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  border-bottom: 1px solid var(--dms-border);
+  background: var(--dms-surface-raised);
+}
+
+.cell {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.cell + .cell {
+  border-left: 1px solid var(--dms-border);
+}
+
+.label {
+  color: var(--dms-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.value {
+  justify-self: start;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  color: var(--dms-faint);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+  padding: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.inline {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.input {
+  width: 100%;
+  min-width: 0;
+  height: 2.1rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--dms-border);
+  border-radius: 7px;
+  background: var(--dms-surface);
+  color: var(--ifm-font-color-base);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+}
+
+.input:focus {
+  outline: 2px solid color-mix(in srgb, var(--ifm-color-primary) 55%, transparent);
+  border-color: var(--ifm-color-primary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--dms-border);
+}
+
+.footer .hint {
+  flex: 1 1 18rem;
+}
+
+.actions {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.ghost,
+.primary {
+  height: 2rem;
+  padding: 0 0.8rem;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ghost {
+  border: 1px solid var(--dms-border);
+  background: var(--dms-surface);
+  color: var(--dms-muted);
+}
+
+.primary {
+  border: 1px solid var(--ifm-color-primary);
+  background: var(--ifm-color-primary);
+  color: var(--dms-on-primary);
+}
+
+.ghost:focus-visible,
+.primary:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+@media screen and (max-width: 640px) {
+  .cell + .cell {
+    border-left: 0;
+    border-top: 1px solid var(--dms-border);
+  }
+}

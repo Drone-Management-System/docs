@@ -3,144 +3,179 @@ sidebar_position: 1
 title: Airspace Constraints
 ---
 
-import Endpoint from '@site/src/components/Endpoint';
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {areas, flightCorridors, identificationZones, monitoringZones, noFlyZones} from '@site/src/data/constraint-management';
+import {permanentVolume4dWrite} from '@site/src/data/constraint-management/samples';
+import CodeBlock from '@theme/CodeBlock';
 
 # Airspace Constraints
 
-Airspace constraint routes manage the named constraints that appear in the
-combined `/constraints` snapshot. Each constraint is linked to one 4D volume at
-creation time.
+The five constraint types share the same fields, the same six endpoints, and
+the same volume handling. Each constraint has a `name`, an `org_id`, and
+exactly one linked 4D volume.
 
-## Resource Families
+## Attaching a volume
 
-| Resource | Base path | Write body fields | Notes |
-| --- | --- | --- | --- |
-| Areas | `/areas` | `name`, `description`, plus volume reference | Managed area records. |
-| Monitoring zones | `/monitoring-zones` | `name`, plus volume reference | Advisory monitoring zones. |
-| No-fly zones | `/no-fly-zones` | `name`, plus volume reference | Blocking constraints for operational intent validation. |
-| Identification zones | `/identification-zones` | `name`, plus volume reference | Identification requirement zones. |
-| Flight corridors | `/flight-corridors` | `name`, `bidirectional`, `gate_area_id`, `exit_area_id`, `space_buffer_m`, plus volume reference | Corridor between two areas. |
+Every create needs a volume. Choose one of two forms:
 
-Each family supports:
+- **Reference:** `"volume_4d_id": "<uuid>"` links an existing 4D volume that is
+  not yet linked to another constraint.
+- **Inline:** `"volume_4d": { ... }` creates the 4D volume, and its 3D volume
+  when `volume_3d` is inline too, in the same transaction.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/<resource>` | List resources with `limit` and `offset`. |
-| `GET` | `/<resource>/:ID` | Fetch one resource by UUID. |
-| `POST` | `/<resource>` | Create a resource and its required 4D volume link. |
-| `PUT` | `/<resource>/:ID` | Replace writable fields and optionally replace the 4D volume link. |
-| `DELETE` | `/<resource>/:ID` | Delete the resource and owned volume links. |
+A permanent volume, such as an airport control zone, has no time window:
 
-## Volume Reference
+<CodeBlock language="json">{JSON.stringify({name: 'Airport control zone', org_id: '8c3198d0-6f9d-4a41-b276-6b60da0bdf54', volume_4d: permanentVolume4dWrite}, null, 2)}</CodeBlock>
 
-Create requests require exactly one of:
+On `PUT`, the volume is optional. Sending one replaces the link and deletes the
+previously linked 4D volume.
 
-```json
-{
-  "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
-}
-```
+## Ownership
 
-or:
+A constraint owns its volumes. Deleting a constraint deletes its 4D volume,
+the 3D volume under it, and its properties. Share geometry by copying it, not
+by linking one volume to several constraints: the database allows only one
+link per volume.
 
-```json
-{
-  "volume_4d": {
-    "name": "Temporary window",
-    "valid_from": "2026-06-30T08:00:00.000Z",
-    "valid_to": "2026-06-30T10:00:00.000Z",
-    "status_code": "ACTIVE",
-    "volume_3d_id": "ae530633-4170-4e6f-9138-a2483d39bf56"
-  }
-}
-```
+<EndpointTable endpoints={[areas.list, areas.filter, areas.get, areas.create, areas.replace, areas.remove, monitoringZones.list, monitoringZones.filter, monitoringZones.get, monitoringZones.create, monitoringZones.replace, monitoringZones.remove, noFlyZones.list, noFlyZones.filter, noFlyZones.get, noFlyZones.create, noFlyZones.replace, noFlyZones.remove, identificationZones.list, identificationZones.filter, identificationZones.get, identificationZones.create, identificationZones.replace, identificationZones.remove, flightCorridors.list, flightCorridors.filter, flightCorridors.get, flightCorridors.create, flightCorridors.replace, flightCorridors.remove]} />
 
-Nested `volume_4d` can use `volume_3d_id` or include a nested `volume_3d`
-object.
+## Areas
 
-## `GET /areas`
+Areas are named regions, such as launch pads or operating sites. Flight corridors use areas as their gate and exit, so deleting an area also deletes the corridors that use it.
 
-<Endpoint
-  method="GET"
-  path="/areas"
-  title="List areas"
-  success="200 OK"
-  summary="Returns paginated area records enriched with linked 4D volume data."
-/>
+### List areas \{#list-areas\}
 
-```bash
-curl -H "Authorization: Bearer $TOKEN" \
-  "$CONSTRAINT_MANAGEMENT_API_BASE_URL/areas?limit=50&offset=0"
-```
+<ApiEndpoint {...areas.list} />
 
-The same list behavior applies to `/monitoring-zones`, `/no-fly-zones`,
-`/identification-zones`, and `/flight-corridors`.
+### Filter areas \{#filter-areas\}
 
-## `POST /areas`
+<ApiEndpoint {...areas.filter} />
 
-<Endpoint
-  method="POST"
-  path="/areas"
-  title="Create area"
-  success="201 Created"
-  summary="Creates an area and links it to a required 4D volume."
-/>
+### Get an area \{#get-areas\}
 
-```bash
-curl -X POST "$CONSTRAINT_MANAGEMENT_API_BASE_URL/areas" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Downtown managed area",
-    "description": "Temporary low-altitude management area",
-    "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
-  }'
-```
+<ApiEndpoint {...areas.get} />
 
-## `PUT /areas/:ID`
+### Create an area \{#create-areas\}
 
-<Endpoint
-  method="PUT"
-  path="/areas/:ID"
-  title="Replace area"
-  success="200 OK"
-  summary="Replaces area fields and optionally replaces the linked 4D volume."
-/>
+<ApiEndpoint {...areas.create} />
 
-## `DELETE /areas/:ID`
+### Replace an area \{#replace-areas\}
 
-<Endpoint
-  method="DELETE"
-  path="/areas/:ID"
-  title="Delete area"
-  success="200 OK"
-  summary="Deletes the area, owned volume links, owned volumes, and dependent flight corridors."
-/>
+<ApiEndpoint {...areas.replace} />
 
-Deleting other constraint families removes the constraint and owned volume
-links. Deleting an area also removes flight corridors that use the area as
-their gate or exit area.
+### Delete an area \{#delete-areas\}
 
-## Flight Corridor Body
+<ApiEndpoint {...areas.remove} />
 
-```json
-{
-  "name": "North-south corridor",
-  "bidirectional": true,
-  "gate_area_id": "f90483b0-b466-4d68-86f0-e02a81390259",
-  "exit_area_id": "54f2da2c-a4a8-4e11-adf7-51d5d995ea8e",
-  "space_buffer_m": "30",
-  "volume_4d_id": "81452690-81d8-47d4-945f-9d22c2d9f9c9"
-}
-```
+## Monitoring zones
 
-## Validation Details
+Regions where traffic is observed. Their volumes default to `ALLOW`.
 
-| Detail | Trigger |
-| --- | --- |
-| `id_required` | Route `:ID` is missing or blank. |
-| `volume_4d_required` | Create did not include a 4D volume reference. |
-| `volume_4d_reference_conflict` | Body included both `volume_4d_id` and `volume_4d`. |
-| `volume_3d_required` | Nested 4D volume did not include `volume_3d_id` or nested `volume_3d`. |
-| `<entity>_not_found` | Requested resource does not exist. |
-| `<entity>_has_invalid_reference` | A supplied UUID does not reference an existing row. |
+### List monitoring zones \{#list-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.list} />
+
+### Filter monitoring zones \{#filter-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.filter} />
+
+### Get a monitoring zone \{#get-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.get} />
+
+### Create a monitoring zone \{#create-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.create} />
+
+### Replace a monitoring zone \{#replace-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.replace} />
+
+### Delete a monitoring zone \{#delete-monitoring_zones\}
+
+<ApiEndpoint {...monitoringZones.remove} />
+
+## No-fly zones
+
+Regions closed to traffic. Inline volumes default to `default_accessibility: "DENY"`; attach a rule to allow exceptions.
+
+### List no-fly zones \{#list-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.list} />
+
+### Filter no-fly zones \{#filter-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.filter} />
+
+### Get a no-fly zone \{#get-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.get} />
+
+### Create a no-fly zone \{#create-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.create} />
+
+### Replace a no-fly zone \{#replace-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.replace} />
+
+### Delete a no-fly zone \{#delete-no_fly_zones\}
+
+<ApiEndpoint {...noFlyZones.remove} />
+
+## Identification zones
+
+Regions where aircraft must identify themselves, for example with Remote ID.
+
+### List identification zones \{#list-identification_zones\}
+
+<ApiEndpoint {...identificationZones.list} />
+
+### Filter identification zones \{#filter-identification_zones\}
+
+<ApiEndpoint {...identificationZones.filter} />
+
+### Get an identification zone \{#get-identification_zones\}
+
+<ApiEndpoint {...identificationZones.get} />
+
+### Create an identification zone \{#create-identification_zones\}
+
+<ApiEndpoint {...identificationZones.create} />
+
+### Replace an identification zone \{#replace-identification_zones\}
+
+<ApiEndpoint {...identificationZones.replace} />
+
+### Delete an identification zone \{#delete-identification_zones\}
+
+<ApiEndpoint {...identificationZones.remove} />
+
+## Flight corridors
+
+Corridors connect a gate area to an exit area. Reads include both areas as `gate_area` and `exit_area`.
+
+### List flight corridors \{#list-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.list} />
+
+### Filter flight corridors \{#filter-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.filter} />
+
+### Get a flight corridor \{#get-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.get} />
+
+### Create a flight corridor \{#create-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.create} />
+
+### Replace a flight corridor \{#replace-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.replace} />
+
+### Delete a flight corridor \{#delete-flight_corridors\}
+
+<ApiEndpoint {...flightCorridors.remove} />

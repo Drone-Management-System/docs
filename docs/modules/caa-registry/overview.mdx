@@ -27,15 +27,13 @@ The service owns the CAA registry slice of the backend data model:
 | Organizations | `caa_registry_api.organization` |
 | Registry users | `caa_registry_api.user` |
 | External identity links | `caa_registry_api.user_identity` |
+| Organization admins | `caa_registry_api.organization_admin` |
 | Operators | `caa_registry_api.operator` |
-| UAS registrations | `caa_registry_api.uas` |
 | UA aircraft | `caa_registry_api.ua` |
+| Remote IDs | `caa_registry_api.remote_id` |
+| Custom properties | `*_properties_names`, `*_properties` for operators, organizations, and UA |
 | Audit trail | `public.audit_log` |
 | Background jobs | `system_jobs`, `system_job_state` |
-
-The UAS certificate endpoint also reads Remote ID certificate data from
-`remote_id_uss_api.remote_id_certificate`. That table is external to this
-module and is treated as read-only by the CAA Registry API.
 
 ## Route Registration
 
@@ -45,16 +43,23 @@ maintainer map, not the public API reference.
 | Route module | Base routes | Implementation concern |
 | --- | --- | --- |
 | `healthRoutes` | `GET /health` | Database and optional cache health. |
+| `integrationRoutes` | `/integrations/zitadel/users`, `/integrations/zitadel/users/deleted` | Signed ZITADEL Actions V2 targets. |
 | `referenceDataRoutes` | `/operator-types`, `/user-types` | Reference table CRUD and audit writes. |
-| `organizationRoutes` | `/organizations` | Organization CRUD, search filters, and audit writes. |
-| `userRoutes` | `/users` | Registry user CRUD, reference validation, and audit writes. |
-| `operatorRoutes` | `/operators` | Operator CRUD, cross-reference validation, delete guards, and audit writes. |
-| `uasRoutes` | `/uas` | UAS CRUD, certificate reads, delete guards, and audit writes. |
-| `uaRoutes` | `/ua`, `/uas/:uasId/ua` | UA aircraft CRUD and audit writes. |
-| `lookupRoutes` | `/lookup/uas/:registrationId` | Joined operational UAS lookup. |
+| `propertyNameRoutes` | `/operator-property-names`, `/organization-property-names`, `/ua-property-names` | Property definition catalogs. |
+| `organizationRoutes` | `/organizations` | Organization CRUD and search filters. |
+| `organizationAdminRoutes` | `/organization-admins` | Organization admin links. |
+| `organizationPropertyRoutes` | `/organization-properties` | Organization property values. |
+| `userRoutes` | `/users` | Registry user CRUD and national id patch. |
+| `operatorRoutes` | `/operators` | Operator CRUD, cross-reference validation, and `expected_org_id` guards. |
+| `operatorPropertyRoutes` | `/operator-properties` | Operator property values. |
+| `remoteIdRoutes` | `/remote-ids` | Remote ID records. |
+| `uaRoutes` | `/ua` | UA CRUD, registration lookup, and `expected_org_id` guards. |
+| `uaPropertyRoutes` | `/ua-properties` | UA property values. |
+| `lookupRoutes` | `/lookup/ua/:registrationId` | Operational UA lookup. |
 | `searchRoutes` | `/search` | Multi-table registry search. |
 | `systemJobRoutes` | `/system/jobs` | Durable background job queue and status routes. |
 | `auditRoutes` | `/audit`, `/:entity/:id/history` | Audit listing and entity history reads. |
+| `filterRoutes` | `/<resource>/filter` | Generic structured filters built by `src/lib/filter.ts`. |
 
 ## Runtime Architecture
 
@@ -67,6 +72,7 @@ The application starts in `src/server.ts` and builds a Fastify instance in
 | Database plugin | `src/plugins/db.ts` | Decorates Fastify with a Drizzle client backed by a PostgreSQL pool. |
 | Cache plugin | `src/plugins/cache.ts` | Optionally connects to Redis and decorates Fastify with `app.cache`. |
 | Auth plugin | `src/plugins/auth.ts` | Verifies bearer tokens and attaches `request.auth`. |
+| System job runner | `src/plugins/system-job-runner.ts` | Polls and runs queued jobs in-process when `SYSTEM_JOB_IN_PROCESS_WORKER_ENABLED` is on (default). |
 | Route plugin | `src/routes/index.ts` | Registers all route families. |
 
 The route layer is intentionally direct. Each route validates raw inputs,
@@ -83,9 +89,11 @@ The main registry lifecycle is:
    type.
 4. Create an operator linked to an organization, optionally with a primary user
    and operator type.
-5. Create UAS records linked to the operator.
-6. Create UA aircraft records linked to a UAS.
-7. Use lookup, search, and audit endpoints to operate and inspect the registry.
+5. Register UA aircraft directly under the organization.
+6. Optionally record Remote ID certificates, organization admins, and custom
+   properties.
+7. Use lookup, search, filters, and audit endpoints to operate and inspect the
+   registry.
 
 Write endpoints create audit events with the acting principal derived from the
 validated token. Delete endpoints return the deleted row and also write audit
@@ -103,8 +111,9 @@ events.
 - Route-level validation returns stable machine-readable `detail` strings.
 - Authentication is required for every route except `/health` when health
   bypass is enabled.
-- System jobs run in a separate worker process and use Postgres for queue and
-  cursor state.
+- System jobs use Postgres for queue and cursor state. They run in-process by
+  default, and can also be run by the standalone job script or
+  `POST /system/jobs/:jobId/run`.
 
 ## Maintainer Documentation Map
 

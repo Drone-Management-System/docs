@@ -1,0 +1,42 @@
+---
+sidebar_position: 5
+title: Snapshot and Audit
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {auditLogs, cache} from '@site/src/data/constraint-management';
+
+# Snapshot and Audit
+
+The **snapshot** is the read model for consumers: every rule and constraint of
+every type, expanded, in one response. It is cached in Redis under
+`constraint-management:constraints:v5` and cleared on every write.
+
+The **audit log** records every write with before and after JSON.
+
+<EndpointTable endpoints={[cache.get, cache.refresh, auditLogs.list, auditLogs.filter, auditLogs.get]} />
+
+## Constraint snapshot
+
+### Get the constraint snapshot \{#get-constraints\}
+
+<ApiEndpoint {...cache.get} />
+
+### Rebuild the constraint snapshot \{#refresh-constraints\}
+
+<ApiEndpoint {...cache.refresh} />
+
+## Audit log
+
+### List audit events \{#list-audit-log\}
+
+<ApiEndpoint {...auditLogs.list} />
+
+### Filter audit events \{#filter-audit-log\}
+
+<ApiEndpoint {...auditLogs.filter} />
+
+### Get an audit event \{#get-audit-log\}
+
+<ApiEndpoint {...auditLogs.get} />

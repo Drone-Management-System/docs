@@ -1,0 +1,209 @@
+---
+sidebar_position: 8
+title: Custom Properties
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {operatorProperties, operatorPropertyNames, organizationProperties, organizationPropertyNames, uaProperties, uaPropertyNames} from '@site/src/data/caa-registry';
+
+# Custom Properties
+
+Custom properties add typed fields to operators, organizations, and UA aircraft
+without schema changes. It works in two steps:
+
+1. **Define** a property once in a catalog, with its name, data type, whether
+   it is required or unique, and its allowed values.
+2. **Assign** values to individual records. Each value is validated against its
+   definition.
+
+The three catalogs share the same API and differ only in paths, id field names,
+and permissions:
+
+| Owner | Definitions | Values | Parent field | Permissions |
+| --- | --- | --- | --- | --- |
+| Operator | `/operator-property-names` | `/operator-properties` | `operator_id` | `operators.*` |
+| Organization | `/organization-property-names` | `/organization-properties` | `org_id` | `organizations.*` |
+| UA aircraft | `/ua-property-names` | `/ua-properties` | `ua_id` | `ua.*` |
+
+## Data types and domains
+
+Values are always stored as strings and parsed using the definition's
+`data_type`:
+
+| `data_type` | Value format | Example |
+| --- | --- | --- |
+| `string` | Any text | `"STANDARD"` |
+| `integer` | Whole number, safe integer range | `"42"` |
+| `number` | Finite decimal | `"2.5"` |
+| `boolean` | `"true"` or `"false"` | `"true"` |
+| `date` | `YYYY-MM-DD` | `"2027-03-31"` |
+| `datetime` | ISO 8601 with offset | `"2027-03-31T12:00:00Z"` |
+| `json` | Any JSON text | `"{\"bands\":[2.4,5.8]}"` |
+
+`domain_values` restricts what is allowed:
+
+```json
+{ "kind": "set", "values": ["BASIC", "STANDARD", "PREMIUM"] }
+```
+
+```json
+{ "kind": "range", "min": 0, "max": 25 }
+```
+
+Ranges work for `integer`, `number`, `date`, and `datetime`. Date bounds can be
+relative to the current day, which is useful for expiry dates and age limits:
+
+```json
+{ "kind": "range", "min": { "relative": "today" } }
+```
+
+```json
+{ "kind": "range", "max": { "relative": "today", "years": -18 } }
+```
+
+Datetime bounds use `"relative": "now"`. Relative bounds are evaluated at write
+time.
+
+## Changing a definition
+
+When a definition's type or domain changes, every stored value is re-checked,
+and the update fails with `*_values_conflict` if any value no longer fits.
+Turning `is_unique` on fails with `*_duplicates_exist` while any record has
+several values. Turning `is_required` on applies to new and changed values
+only. Writes to definitions and values are serialized, so these checks are
+safe under concurrency.
+
+<EndpointTable endpoints={[organizationPropertyNames.list, organizationPropertyNames.get, organizationPropertyNames.create, organizationPropertyNames.replace, organizationPropertyNames.remove, organizationProperties.list, organizationProperties.get, organizationProperties.create, organizationProperties.replace, organizationProperties.remove, operatorPropertyNames.list, operatorPropertyNames.get, operatorPropertyNames.create, operatorPropertyNames.replace, operatorPropertyNames.remove, operatorProperties.list, operatorProperties.get, operatorProperties.create, operatorProperties.replace, operatorProperties.remove, uaPropertyNames.list, uaPropertyNames.get, uaPropertyNames.create, uaPropertyNames.replace, uaPropertyNames.remove, uaProperties.list, uaProperties.get, uaProperties.create, uaProperties.replace, uaProperties.remove]} />
+
+## Organization property definitions
+
+### List organization property definitions \{#list-organization-property-names\}
+
+<ApiEndpoint {...organizationPropertyNames.list} />
+
+### Get a organization property definition \{#get-organization-property-name\}
+
+<ApiEndpoint {...organizationPropertyNames.get} />
+
+### Create a organization property definition \{#create-organization-property-name\}
+
+<ApiEndpoint {...organizationPropertyNames.create} />
+
+### Replace a organization property definition \{#replace-organization-property-name\}
+
+<ApiEndpoint {...organizationPropertyNames.replace} />
+
+### Delete a organization property definition \{#delete-organization-property-name\}
+
+<ApiEndpoint {...organizationPropertyNames.remove} />
+
+## Organization property values
+
+### List organization property values \{#list-organization-properties\}
+
+<ApiEndpoint {...organizationProperties.list} />
+
+### Get a organization property value \{#get-organization-property\}
+
+<ApiEndpoint {...organizationProperties.get} />
+
+### Assign a organization property value \{#create-organization-property\}
+
+<ApiEndpoint {...organizationProperties.create} />
+
+### Replace a organization property value \{#replace-organization-property\}
+
+<ApiEndpoint {...organizationProperties.replace} />
+
+### Delete a organization property value \{#delete-organization-property\}
+
+<ApiEndpoint {...organizationProperties.remove} />
+
+## Operator property definitions
+
+### List operator property definitions \{#list-operator-property-names\}
+
+<ApiEndpoint {...operatorPropertyNames.list} />
+
+### Get a operator property definition \{#get-operator-property-name\}
+
+<ApiEndpoint {...operatorPropertyNames.get} />
+
+### Create a operator property definition \{#create-operator-property-name\}
+
+<ApiEndpoint {...operatorPropertyNames.create} />
+
+### Replace a operator property definition \{#replace-operator-property-name\}
+
+<ApiEndpoint {...operatorPropertyNames.replace} />
+
+### Delete a operator property definition \{#delete-operator-property-name\}
+
+<ApiEndpoint {...operatorPropertyNames.remove} />
+
+## Operator property values
+
+### List operator property values \{#list-operator-properties\}
+
+<ApiEndpoint {...operatorProperties.list} />
+
+### Get a operator property value \{#get-operator-property\}
+
+<ApiEndpoint {...operatorProperties.get} />
+
+### Assign a operator property value \{#create-operator-property\}
+
+<ApiEndpoint {...operatorProperties.create} />
+
+### Replace a operator property value \{#replace-operator-property\}
+
+<ApiEndpoint {...operatorProperties.replace} />
+
+### Delete a operator property value \{#delete-operator-property\}
+
+<ApiEndpoint {...operatorProperties.remove} />
+
+## UA aircraft property definitions
+
+### List UA aircraft property definitions \{#list-ua-property-names\}
+
+<ApiEndpoint {...uaPropertyNames.list} />
+
+### Get a UA aircraft property definition \{#get-ua-property-name\}
+
+<ApiEndpoint {...uaPropertyNames.get} />
+
+### Create a UA aircraft property definition \{#create-ua-property-name\}
+
+<ApiEndpoint {...uaPropertyNames.create} />
+
+### Replace a UA aircraft property definition \{#replace-ua-property-name\}
+
+<ApiEndpoint {...uaPropertyNames.replace} />
+
+### Delete a UA aircraft property definition \{#delete-ua-property-name\}
+
+<ApiEndpoint {...uaPropertyNames.remove} />
+
+## UA aircraft property values
+
+### List UA aircraft property values \{#list-ua-properties\}
+
+<ApiEndpoint {...uaProperties.list} />
+
+### Get a UA aircraft property value \{#get-ua-property\}
+
+<ApiEndpoint {...uaProperties.get} />
+
+### Assign a UA aircraft property value \{#create-ua-property\}
+
+<ApiEndpoint {...uaProperties.create} />
+
+### Replace a UA aircraft property value \{#replace-ua-property\}
+
+<ApiEndpoint {...uaProperties.replace} />
+
+### Delete a UA aircraft property value \{#delete-ua-property\}
+
+<ApiEndpoint {...uaProperties.remove} />

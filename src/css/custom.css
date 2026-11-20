@@ -1,10 +1,8 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Global styles. Infima variables are overridden here, and the `--dms-*`
+ * tokens are shared by the API reference components.
  */
 
-/* You can override the default Infima variables here. */
 :root {
   --ifm-color-primary: #2563eb;
   --ifm-color-primary-dark: #1d4ed8;
@@ -13,11 +11,46 @@
   --ifm-color-primary-light: #3b82f6;
   --ifm-color-primary-lighter: #60a5fa;
   --ifm-color-primary-lightest: #93c5fd;
-  --ifm-code-font-size: 95%;
+  --ifm-code-font-size: 92%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  --dms-surface: #ffffff;
+  --dms-surface-raised: #f8fafc;
+  --dms-console-bg: #f1f5f9;
+  --dms-hover: rgba(15, 23, 42, 0.05);
+  --dms-border: #e2e8f0;
+  --dms-border-strong: #cbd5e1;
+  --dms-muted: #475569;
+  --dms-faint: #64748b;
+  --dms-on-primary: #ffffff;
+  --dms-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.04);
+  --dms-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  --dms-ok: #15803d;
+  --dms-info: #2563eb;
+  --dms-warn: #c2410c;
+  --dms-danger: #b91c1c;
+  --dms-warn-fg: #9a3412;
+  --dms-warn-bg: #fff7ed;
+  --dms-warn-ring: #fed7aa;
+
+  --dms-get-fg: #047857;
+  --dms-get-bg: #ecfdf5;
+  --dms-get-ring: #a7f3d0;
+  --dms-post-fg: #1d4ed8;
+  --dms-post-bg: #eff6ff;
+  --dms-post-ring: #bfdbfe;
+  --dms-put-fg: #b45309;
+  --dms-put-bg: #fffbeb;
+  --dms-put-ring: #fde68a;
+  --dms-patch-fg: #6d28d9;
+  --dms-patch-bg: #f5f3ff;
+  --dms-patch-ring: #ddd6fe;
+  --dms-delete-fg: #b91c1c;
+  --dms-delete-bg: #fef2f2;
+  --dms-delete-ring: #fecaca;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
 [data-theme='dark'] {
   --ifm-color-primary: #60a5fa;
   --ifm-color-primary-dark: #3b82f6;
@@ -27,4 +60,46 @@
   --ifm-color-primary-lighter: #bfdbfe;
   --ifm-color-primary-lightest: #dbeafe;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+
+  --dms-surface: #161b22;
+  --dms-surface-raised: #1c2230;
+  --dms-console-bg: #0f141b;
+  --dms-hover: rgba(255, 255, 255, 0.05);
+  --dms-border: #2a3241;
+  --dms-border-strong: #3a4456;
+  --dms-muted: #a3adbd;
+  --dms-faint: #8792a4;
+  --dms-on-primary: #0b1220;
+  --dms-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --dms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  --dms-ok: #4ade80;
+  --dms-info: #60a5fa;
+  --dms-warn: #fb923c;
+  --dms-danger: #f87171;
+  --dms-warn-fg: #fdba74;
+  --dms-warn-bg: rgba(251, 146, 60, 0.1);
+  --dms-warn-ring: rgba(251, 146, 60, 0.35);
+
+  --dms-get-fg: #34d399;
+  --dms-get-bg: rgba(52, 211, 153, 0.12);
+  --dms-get-ring: rgba(52, 211, 153, 0.3);
+  --dms-post-fg: #60a5fa;
+  --dms-post-bg: rgba(96, 165, 250, 0.12);
+  --dms-post-ring: rgba(96, 165, 250, 0.3);
+  --dms-put-fg: #fbbf24;
+  --dms-put-bg: rgba(251, 191, 36, 0.12);
+  --dms-put-ring: rgba(251, 191, 36, 0.3);
+  --dms-patch-fg: #a78bfa;
+  --dms-patch-bg: rgba(167, 139, 250, 0.12);
+  --dms-patch-ring: rgba(167, 139, 250, 0.3);
+  --dms-delete-fg: #f87171;
+  --dms-delete-bg: rgba(248, 113, 113, 0.12);
+  --dms-delete-ring: rgba(248, 113, 113, 0.3);
+}
+
+/* Endpoint headings sit directly above their cards. */
+.markdown h3 + section[aria-label],
+.markdown h3 + p + section[aria-label] {
+  margin-top: 0.75rem;
 }

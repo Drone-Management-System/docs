@@ -1,0 +1,59 @@
+---
+sidebar_position: 3
+title: Position Reports
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {auditLogs, positionReports} from '@site/src/data/remote-identification';
+
+# Position Reports
+
+A position report is one received Remote ID message: where the aircraft was,
+when, how it was received, and the raw decoded payload. Each report is stored as
+two rows, a `message` (payload, hash, signature, verification, receiver) and a
+`position_report` (time, coordinates, altitude, session). The API always reads
+and writes them together as one flat object.
+
+`payload_hash` defaults to the SHA-256 of the payload JSON. Filter on it to
+detect the same message received by several receivers.
+
+<EndpointTable endpoints={[positionReports.list, positionReports.filter, positionReports.get, positionReports.create, positionReports.replace, positionReports.remove, auditLogs.list, auditLogs.get]} />
+
+### List position reports \{#list-position-reports\}
+
+<ApiEndpoint {...positionReports.list} />
+
+### Filter position reports \{#filter-position-reports\}
+
+For a live map of an area, combine a bounding box with `observed_from` set to a few seconds ago.
+
+<ApiEndpoint {...positionReports.filter} />
+
+### Get a position report \{#get-position-report\}
+
+<ApiEndpoint {...positionReports.get} />
+
+### Ingest a position report \{#create-position-report\}
+
+<ApiEndpoint {...positionReports.create} />
+
+### Replace a position report \{#replace-position-report\}
+
+<ApiEndpoint {...positionReports.replace} />
+
+### Delete a position report \{#delete-position-report\}
+
+<ApiEndpoint {...positionReports.remove} />
+
+## Audit log
+
+Every certificate, session, and position report write is recorded. Actors are `system` while authentication is disabled.
+
+### List audit events \{#list-audit-logs\}
+
+<ApiEndpoint {...auditLogs.list} />
+
+### Get an audit event \{#get-audit-log\}
+
+<ApiEndpoint {...auditLogs.get} />

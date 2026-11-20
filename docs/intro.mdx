@@ -4,20 +4,28 @@ sidebar_position: 1
 
 # DMS Backend Documentation
 
-This site provides API references and technical module documentation for DMS
-backend services. API references are grouped by module so each service keeps its
-endpoint surface, authentication rules, request formats, response formats, and
-error behavior separate.
+API references and module documentation for the DMS (Drone Management System)
+backend services. Each API is documented per module: its endpoints,
+authentication, request and response formats, and errors.
 
 ## API Reference
 
 | API | Status | Entry Point | Notes |
 | --- | --- | --- | --- |
-| API Catalog | Active | [API Reference](./api/overview) | Module-by-module API index. |
-| CAA Registry | Documented | [CAA Registry API](./api/caa-registry/overview) | Consumer-facing endpoint reference, auth rules, request examples, response shapes, and errors. |
+| API Catalog | Active | [API Reference](./api/overview) | How the services fit together. |
+| CAA Registry | Documented | [CAA Registry API](./api/caa-registry/overview) | Organizations, users, operators, UA aircraft, Remote IDs, custom properties, filters, audit, and system jobs. |
+| Constraint Management | Documented | [Constraint Management API](./api/constraint-management/overview) | Airspace constraints, volumes, rules, properties, and the constraint snapshot. |
+| Operations Intents | Documented | [Operations Intents API](./api/operations-intents/overview) | Operational intents, packages, CONOPS and risk, and the review workflow. |
+| Remote Identification | Documented | [Remote Identification API](./api/remote-identification/overview) | Certificates, sessions, and position reports. |
+| RID Auth Server | Documented | [RID Auth Server API](./api/rid-auth-server/overview) | Drone provisioning and Remote ID verification. |
 
 ## Module Architecture
 
 | Module | Status | Entry Point | Notes |
 | --- | --- | --- | --- |
 | CAA Registry | Documented | [CAA Registry Module](./modules/caa-registry/overview) | Runtime architecture, configuration, schema ownership, and data model. |
+
+## Development
+
+- [Sign and Call APIs](./development/sign-and-call-api): get a ZITADEL
+  service-user token and call a protected endpoint.

@@ -5,74 +5,77 @@ title: API Conventions
 
 # API Conventions
 
-This page documents conventions shared across Operations Intents endpoints.
+## Base URL
 
-## Content Type
+Routes are registered at the service root. The local default is
+`http://localhost:8000`.
 
-Write endpoints expect JSON request bodies:
+## Records
 
-```http
-Content-Type: application/json
-Accept: application/json
-```
+Every record except volume links and audit events has `id`, `created_at`,
+`updated_at`, `created_by`, and `updated_by`. The actor fields are set by the
+API. `PUT` is a full replacement validated like a create.
+
+Reads are expanded: intents include `conops` and `risk_assessment`, and 4D
+volumes include `volume_3d`.
+
+## Geometry, numbers, and times
+
+- Footprints are GeoJSON `Polygon` or `MultiPolygon` in WGS 84, stored and
+  returned as `MultiPolygon`.
+- Altitudes are `numeric`: send numbers or strings, read strings (`"100.00"`).
+- Timestamps are ISO 8601. Send an explicit offset.
 
 ## Pagination
 
-Most list endpoints use offset pagination:
+`limit` (default `50`, `1`–`200`) and `offset` (default `0`):
 
-| Query parameter | Default | Minimum | Maximum |
-| --- | --- | --- | --- |
-| `limit` | `50` | `1` | `200` |
-| `offset` | `0` | `0` | `100000` |
+```json
+{ "items": [], "limit": 50, "offset": 0, "has_more": false }
+```
 
-The response shape is:
+## Two error formats
+
+CRUD, package, and volume link routes return the plain format:
+
+```json
+{ "detail": "operational_intent_not_found" }
+```
+
+Review workflow routes return an envelope with guidance for the user:
 
 ```json
 {
-  "items": [],
-  "limit": 50,
-  "offset": 0,
-  "has_more": false
+  "success": false,
+  "code": "APPROVAL_STALE_REVIEW",
+  "message": "The operational intent changed after the reviewed version.",
+  "action": "Run validation again and restart approval review.",
+  "details": {},
+  "retryable": false,
+  "correlation_id": "7f9c2ba4-e88f-4b2a-9d7b-1a2b3c4d5e6f"
 }
 ```
 
-## Filtering
+Successful review calls use the same envelope with `success: true` and the
+result in `data`. Show `message` and `action` to users as-is; branch on `code`.
 
-`GET /operational-intents/filter` supports filters over linked 4D volumes:
+## Correlation ids
 
-| Query parameter | Notes |
+Review routes read `x-correlation-id`, or generate one, and return it in the
+`x-correlation-id` response header and the body. The id is also stored with the
+approval decision and audit entry. Send your own to trace a request across
+services.
+
+## Validation statuses
+
+| Field | Values |
 | --- | --- |
-| `active` | Boolean filter against linked 4D volume `status_code`. |
-| `current_time` or `current` | Boolean filter for whether linked 4D volumes include current server time. |
-| `start_time` or `start` | Start of an overlap time range. Must be paired with end. |
-| `end_time` or `end` | End of an overlap time range. Must be after start. |
-| `latitude` or `lat` | Position latitude, from `-90` to `90`. |
-| `longitude`, `lng`, or `lon` | Position longitude, from `-180` to `180`. |
-| `buffer_m` | Optional position buffer in meters, from `0` to `1000000`. |
+| `overall_status` | `VALID`, `INVALID`, `REQUIRES_REVIEW`, `BLOCKING`, `UNAVAILABLE` |
+| `approval_status` | `NOT_REQUESTED`, `PENDING_HUMAN_APPROVAL`, `AUTO_APPROVED`, `HUMAN_APPROVED`, `REJECTED`, `CHANGES_REQUESTED`, `REAPPROVAL_REQUIRED` |
+| `decision_type` | `HUMAN`, `RULE_BASED_AUTOMATIC` |
+| Finding `severity` | `INFO`, `WARNING`, `ERROR`, `TODO` |
+| Finding `category` | `INTENT`, `VOLUME`, `CONOPS`, `RISK`, `CONSTRAINT`, `CONFLICT`, `PERMISSION`, `PRIORITY`, `PRIVILEGE`, `DEPENDENCY` |
 
-`current_time` cannot be combined with an explicit start/end time range.
-
-## Validation Contexts
-
-Supported validation contexts are `CREATE`, `UPDATE`, `APPROVAL_REQUEST`,
-`ACTIVATION`, and `REVALIDATION`.
-
-## Error Envelope
-
-Application errors use:
-
-```json
-{
-  "detail": "machine_readable_detail"
-}
-```
-
-| Status | Typical cause |
-| --- | --- |
-| `400` | Missing required field, invalid query, invalid UUID, invalid geometry, invalid date, or invalid numeric value. |
-| `401` | Missing or invalid authentication when auth is enabled. |
-| `403` | Valid token but missing permission when a route asserts permissions. |
-| `404` | Requested record not found. |
-| `409` | Unique or foreign-key conflict. |
-| `501` | A validation dependency table is unavailable in the connected database. |
-| `500` | Unhandled server error. |
+The latest validation and approval values are also stored on the intent
+(`latest_*_status_code`, `approval_*`), so lists can show them without extra
+calls.

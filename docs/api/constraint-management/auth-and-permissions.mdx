@@ -5,62 +5,82 @@ title: Auth and Permissions
 
 # Auth and Permissions
 
-Constraint Management includes ZITADEL-compatible bearer-token verification
-helpers, group-to-permission mapping, and standard auth error responses.
+Constraint Management has two permissions, and access is decided by the HTTP
+method:
 
-## Current Registration State
+| Requests | Permission |
+| --- | --- |
+| `GET`, `HEAD` | `constraints.review` |
+| `POST`, `PUT`, `PATCH`, `DELETE` | `constraints.review.decide` |
 
-In `../constraint-management/src/app.ts`, the auth plugin import exists but the
-registration is currently commented out:
+`GET /health` is always public.
 
-```ts
-// await app.register(registerAuthPlugin);
-```
+## Roles
 
-That means current route registration does not enforce authentication or
-per-route authorization in the Fastify request lifecycle. Mutable routes still
-write audit events using `request.auth` when an auth context is present.
+| Role | Grants |
+| --- | --- |
+| `admin` | Everything, regardless of other permissions. |
+| `auditor` | `constraints.review` only. Auditors are always refused on writes, even if they also hold `constraints.review.decide`. |
 
-When the auth plugin is enabled, send:
+Roles and permissions can come from two places, and are merged when both are
+present.
+
+## Bearer tokens
 
 ```http
-Authorization: Bearer <jwt>
+Authorization: Bearer <access token>
 ```
 
-## Token Validation
+Tokens are verified against `ZITADEL_JWKS_URL`, `ZITADEL_ISSUER_URL`, and
+`ZITADEL_AUDIENCE`. From the verified token:
 
-| Config key | Purpose | Default |
-| --- | --- | --- |
-| `ZITADEL_ISSUER_URL` | Expected issuer. | `http://localhost` |
-| `ZITADEL_JWKS_URL` | JWKS endpoint used by `jose`. | `http://localhost/.well-known/jwks.json` |
-| `ZITADEL_AUDIENCE` | Expected audience. | `local` |
-| `ZITADEL_GROUPS_CLAIM` | Claim used to resolve group names. | `groups` |
-| `ZITADEL_USERNAME_CLAIM` | Username claim copied into audit actor context. | `preferred_username` |
-| `ZITADEL_EMAIL_CLAIM` | Email claim copied into audit actor context. | `email` |
-| `ZITADEL_BYPASS_AUTH_FOR_HEALTH` | Allows public `GET /health` when enabled. | `true` when unset |
+- Roles are read from the claim named by `ZITADEL_GROUPS_CLAIM` (default
+  `groups`). Only `admin` and `auditor` are recognized; other values are
+  ignored.
+- Permissions are read from the claim named by `ZITADEL_PERMISSIONS_CLAIM`
+  (default `permissions`). Each value must be a known permission, or the
+  request fails with `token_permission_unknown`.
 
-## Permission Model
+## Trusted actor headers
 
-The service currently carries the shared backend permission helper, but route
-handlers do not currently call `assertPermission`. Treat the permission map as
-available plumbing rather than an enforced endpoint contract.
+A backend that already authenticated the user, such as the Constraint
+Management dashboard's server, can forward the actor instead of a token:
 
-## Auth Error Envelope
-
-When auth is enabled, auth failures use:
-
-```json
-{
-  "detail": "authentication_required"
-}
-```
-
-Common auth details are:
-
-| Detail | Meaning |
+| Header | Meaning |
 | --- | --- |
-| `authentication_required` | Missing bearer token or missing auth context. |
-| `invalid_authorization_header` | Header did not match `Bearer <token>`. |
-| `invalid_token` | JWT verification failed. |
-| `token_subject_missing` | Verified token did not include a usable subject. |
-| `permission_denied` | A route called `assertPermission` and rejected the request. |
+| `x-actor-id` | Required. The actor's subject, recorded as `created_by`/`updated_by`. |
+| `x-actor-roles` | Optional, comma-separated: `admin`, `auditor`. |
+| `x-actor-permissions` | Optional, comma-separated permissions. |
+
+```bash
+curl "$CONSTRAINT_MANAGEMENT_API_BASE_URL/no-fly-zones" \
+  -H "x-actor-id: 312244512312345678" \
+  -H "x-actor-roles: auditor"
+```
+
+:::warning[Server-side only]
+
+The API trusts these headers as sent. Only a backend you control should set
+them, and that backend must strip any copies sent by browsers. Do not expose
+the API publicly with actor headers enabled. Browsers cannot send them anyway:
+CORS only allows `Authorization` and `Content-Type`.
+
+:::
+
+## Errors
+
+| Status | `detail` | Cause |
+| --- | --- | --- |
+| `400` | `actor_id_required` | Role or permission headers without `x-actor-id`. |
+| `400` | `actor_id_invalid` | `x-actor-id` is blank or repeated. |
+| `400` | `actor_role_unknown` | Unknown role in `x-actor-roles`. |
+| `400` | `actor_permission_unknown` | Unknown permission in `x-actor-permissions`. |
+| `400` | `token_permission_unknown` | Unknown permission in the token's permissions claim. |
+| `401` | `invalid_authorization_header` | The header is not `Bearer <token>`. |
+| `401` | `invalid_token` | The token failed verification. |
+| `403` | `permission_denied` | The caller lacks the permission for the method. |
+
+## Audit actor
+
+Writes store the actor subject in `created_by` and `updated_by`, and in the
+audit log `actor`. Requests without an actor are recorded as `system`.

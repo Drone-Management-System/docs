@@ -5,7 +5,39 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 
+import {allEndpoints as caaEndpoints} from '@site/src/data/caa-registry';
+import {allEndpoints as cmEndpoints} from '@site/src/data/constraint-management';
+import {allEndpoints as oiEndpoints} from '@site/src/data/operations-intents';
+import {allEndpoints as ridEndpoints} from '@site/src/data/remote-identification';
+
 import styles from './index.module.css';
+
+const apis = [
+  {
+    name: 'CAA Registry',
+    to: '/api/caa-registry/overview',
+    count: caaEndpoints.length,
+    description: 'Organizations, users, operators, UA aircraft, Remote IDs, custom properties, filters, and audit history.',
+  },
+  {
+    name: 'Constraint Management',
+    to: '/api/constraint-management/overview',
+    count: cmEndpoints.length,
+    description: 'Areas, zones, corridors, 3D and 4D volumes, rules, and the cached constraint snapshot.',
+  },
+  {
+    name: 'Operations Intents',
+    to: '/api/operations-intents/overview',
+    count: oiEndpoints.length,
+    description: 'Planned operations with CONOPS and risk, validation against constraints, and approval review.',
+  },
+  {
+    name: 'Remote Identification',
+    to: '/api/remote-identification/overview',
+    count: ridEndpoints.length,
+    description: 'Remote ID certificates, flight sessions, and received position reports.',
+  },
+];
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -17,9 +49,7 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/api/caa-registry/overview">
+          <Link className="button button--secondary button--lg" to="/api/overview">
             Open API Reference
           </Link>
         </div>
@@ -31,36 +61,28 @@ function HomepageHeader() {
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
-    <Layout
-      title={siteConfig.title}
-      description="Reference documentation for DMS backend modules">
+    <Layout title={siteConfig.title} description="Reference documentation for DMS backend modules">
       <HomepageHeader />
       <main>
         <section className={styles.moduleBand}>
           <div className="container">
             <div className={styles.moduleGrid}>
-              <article className={styles.moduleCard}>
-                <p className={styles.eyebrow}>Public reference</p>
-                <Heading as="h2">CAA Registry API</Heading>
-                <p>
-                  Consumer-facing endpoint docs for organizations, users,
-                  operators, UAS records, UA aircraft, lookup, search, and
-                  audit history.
-                </p>
-                <Link to="/docs/api/caa-registry/overview">
-                  Read the API reference
-                </Link>
-              </article>
-              <article className={styles.moduleCard}>
+              {apis.map((api) => (
+                <article key={api.name} className={styles.moduleCard}>
+                  <p className={styles.eyebrow}>Public reference · {api.count} endpoints</p>
+                  <Heading as="h2">{api.name} API</Heading>
+                  <p>{api.description}</p>
+                  <Link to={api.to}>Read the API reference</Link>
+                </article>
+              ))}
+              <article className={clsx(styles.moduleCard, styles.wide)}>
                 <p className={styles.eyebrow}>Internal reference</p>
                 <Heading as="h2">Module Architecture</Heading>
                 <p>
-                  Implementation notes for the Fastify service, runtime setup,
-                  database ownership, startup flow, and data model.
+                  Implementation notes for the CAA Registry service: runtime setup, database ownership, startup flow,
+                  system jobs, and the data model.
                 </p>
-                <Link to="/docs/modules/caa-registry/overview">
-                  Read architecture notes
-                </Link>
+                <Link to="/modules/caa-registry/overview">Read architecture notes</Link>
               </article>
             </div>
           </div>

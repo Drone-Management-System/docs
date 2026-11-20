@@ -24,8 +24,11 @@ flowchart LR
   D --> F[ZITADEL APIs]
 ```
 
-The API process queues jobs. The worker process claims and runs jobs. They
-coordinate through Postgres.
+The API process queues jobs. A worker claims and runs them, and they coordinate
+through Postgres. By default the worker runs inside the API process
+(`src/plugins/system-job-runner.ts`). Set
+`SYSTEM_JOB_IN_PROCESS_WORKER_ENABLED=false` to run it separately with the job
+script, or run one queued job on demand with `POST /system/jobs/:jobId/run`.
 
 ## Tables
 
@@ -124,7 +127,9 @@ path.
 | `ZITADEL_API_BASE_URL` | No | Defaults to `ZITADEL_ISSUER_URL`. |
 | `ZITADEL_USER_SYNC_PAGE_SIZE` | No | Event/user page size. Default `100`. |
 | `ZITADEL_USER_SYNC_MAX_USERS` | No | Full-scan safety cap. Default `1000`. |
+| `SYSTEM_JOB_IN_PROCESS_WORKER_ENABLED` | No | Run the worker inside the API process. Default `true`. |
 | `SYSTEM_JOB_WORKER_POLL_INTERVAL_MS` | No | Idle worker poll interval. Default `2000`. |
+| `SYSTEM_JOB_WORKER_ERROR_BACKOFF_MS` | No | Wait after a worker error. Default `10000`. |
 | `SYSTEM_JOB_STALE_RUNNING_MS` | No | Running-job timeout. Default `7200000`. |
 
 The ZITADEL token must be a service-account token. For event API access, the

@@ -1,0 +1,39 @@
+---
+sidebar_position: 7
+title: Remote IDs
+---
+
+import ApiEndpoint from '@site/src/components/ApiEndpoint';
+import EndpointTable from '@site/src/components/EndpointTable';
+import {remoteIds} from '@site/src/data/caa-registry';
+
+# Remote IDs
+
+Remote ID records hold the Remote ID certificate data the CAA tracks for an
+organization: a reference, the certificate subject, a validity window, and a
+status. They map to `caa_registry_api.remote_id` and are deleted with their
+organization.
+
+The removed `authority_id` filter returns `remote_id_authority_filter_removed`.
+
+<EndpointTable endpoints={[remoteIds.list, remoteIds.get, remoteIds.create, remoteIds.replace, remoteIds.remove]} />
+
+### List Remote ID records \{#list-remote-ids\}
+
+<ApiEndpoint {...remoteIds.list} />
+
+### Get a Remote ID record \{#get-remote-id\}
+
+<ApiEndpoint {...remoteIds.get} />
+
+### Create a Remote ID record \{#create-remote-id\}
+
+<ApiEndpoint {...remoteIds.create} />
+
+### Replace a Remote ID record \{#replace-remote-id\}
+
+<ApiEndpoint {...remoteIds.replace} />
+
+### Delete a Remote ID record \{#delete-remote-id\}
+
+<ApiEndpoint {...remoteIds.remove} />
